@@ -1,0 +1,21 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#0B1120" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#111827" />
+    <SolidColorBrush x:Key="SurfaceAltBrush" Color="#172033" />
+    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#1C2942" />
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F1F5F9" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#A7B3C7" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#7F8DA3" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#2A374C" />
+    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#0F172A" />
+    <SolidColorBrush x:Key="SelectionBrush" Color="#233A67" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#6D8BFF" />
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="#86A0FF" />
+    <SolidColorBrush x:Key="SuccessBrush" Color="#34D399" />
+    <SolidColorBrush x:Key="WarningBrush" Color="#FBBF24" />
+    <SolidColorBrush x:Key="RailBrush" Color="#080D18" />
+    <SolidColorBrush x:Key="RailHoverBrush" Color="#172033" />
+    <SolidColorBrush x:Key="RailTextBrush" Color="#E2E8F0" />
+</ResourceDictionary>
+
