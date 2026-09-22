@@ -8,6 +8,7 @@ public sealed class AppSettings
     public ScanSnapshot? LastSnapshot { get; set; }
     public GitHistoryOptions GitHistory { get; set; } = new();
     public GitHistorySnapshot? LastGitHistory { get; set; }
+    public AiUsageSettings AiUsage { get; set; } = new();
 
     public static List<ProjectDefinition> CreateDefaultProjects() =>
     [

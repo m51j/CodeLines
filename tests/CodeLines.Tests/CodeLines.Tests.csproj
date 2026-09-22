@@ -22,4 +22,8 @@
     <ProjectReference Include="..\..\src\CodeLines.Core\CodeLines.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="AiUsage\Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

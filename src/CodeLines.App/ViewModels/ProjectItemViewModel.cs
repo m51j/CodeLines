@@ -1,3 +1,4 @@
+using CodeLines.Core.AiUsage;
 using CodeLines.Core.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -20,6 +21,18 @@ public sealed partial class ProjectItemViewModel : ObservableObject
     [ObservableProperty] private string rootPath;
     [ObservableProperty] private bool isEnabled;
     [ObservableProperty] private string exclusions;
+    [ObservableProperty] private double aiTokens;
+    [ObservableProperty] private double aiTokens30Days;
+    [ObservableProperty] private string aiCost = "—";
+    [ObservableProperty] private int aiSessions;
+
+    public void SetAiUsage(AiProjectUsage allTime, AiProjectUsage last30Days)
+    {
+        AiTokens = allTime.Tokens;
+        AiTokens30Days = last30Days.Tokens;
+        AiCost = allTime.CostText;
+        AiSessions = allTime.Sessions;
+    }
 
     public void Apply()
     {

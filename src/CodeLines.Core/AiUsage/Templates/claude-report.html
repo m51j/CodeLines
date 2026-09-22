@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code Usage</title>
+<style>
+:root{
+  color-scheme: dark;
+  --surface-0:#111110;
+  --surface-1:#191918;
+  --surface-2:#222221;
+  --surface-3:#2c2c2a;
+  --line:#33332f;
+  --text-1:#f5f5f2;
+  --text-2:#c3c2b7;
+  --text-3:#8b8a80;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
+  --s7:#9085e9; --s8:#e66767;
+  --seq-0:#232322; --seq-1:#0d366b; --seq-2:#184f95; --seq-3:#256abf; --seq-4:#3987e5; --seq-5:#6da7ec; --seq-6:#9ec5f4;
+  --radius:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--surface-0);
+  color:var(--text-1);
+  font:14px/1.5 ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 16px 80px}
+header h1{font-size:22px;font-weight:600;margin:0 0 6px}
+header p{margin:0;color:var(--text-3);font-size:13px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:22px 0 16px}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:9px;padding:3px;gap:2px}
+.seg button{
+  appearance:none;border:0;background:transparent;color:var(--text-3);
+  font:inherit;font-size:13px;padding:5px 12px;border-radius:7px;cursor:pointer;
+}
+.seg button[aria-selected="true"]{background:var(--surface-3);color:var(--text-1)}
+.seg button:hover{color:var(--text-1)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tile{background:var(--surface-1);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;min-width:0}
+.tile .k{color:var(--text-3);font-size:12px;margin-bottom:6px}
+.tile .v{font-size:22px;font-weight:600;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .s{color:var(--text-3);font-size:11px;margin-top:4px}
+.tile.hero{grid-column:span 2;background:var(--surface-1)}
+.tile.hero .v{font-size:48px;line-height:1.05;font-weight:600}
+.card{background:var(--surface-1);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:14px}
+.card h2{font-size:14px;font-weight:600;margin:0 0 2px}
+.card p.sub{margin:0 0 14px;color:var(--text-3);font-size:12px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 0;font-size:12px;color:var(--text-2)}
+.legend span.i{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 10px;text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--text-3);font-weight:500;font-size:12px;border-bottom:1px solid var(--line)}
+tbody tr{border-bottom:1px solid var(--surface-2)}
+tbody tr:last-child{border-bottom:0}
+tbody tr.total{border-top:1px solid var(--line);font-weight:600}
+td.num,th.num{font-variant-numeric:tabular-nums}
+td.name{display:flex;align-items:center;gap:8px}
+svg{display:block;width:100%;height:auto}
+.tt{
+  position:fixed;pointer-events:none;z-index:50;opacity:0;transition:opacity .08s;
+  background:var(--surface-3);border:1px solid var(--line);border-radius:9px;
+  padding:9px 11px;font-size:12px;color:var(--text-1);box-shadow:0 8px 24px rgba(0,0,0,.45);
+  max-width:280px;
+}
+.tt b{font-weight:600}
+.tt .row{display:flex;justify-content:space-between;gap:14px;color:var(--text-2)}
+.tt .row span:last-child{color:var(--text-1);font-variant-numeric:tabular-nums}
+.tab{display:none}
+.tab.on{display:block}
+.note{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;color:var(--text-2);font-size:12.5px;margin-top:14px}
+.note b{color:var(--text-1)}
+.scale{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-3)}
+.scale i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.grow{flex:1}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+@media (max-width:820px){
+  .tiles{grid-template-columns:repeat(2,1fr)}
+  .tile.hero{grid-column:span 2}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Claude Code &mdash; real token usage</h1>
+    <p id="meta"></p>
+  </header>
+
+  <div class="bar">
+    <div class="seg" id="tabs" role="tablist">
+      <button data-tab="overview" aria-selected="true">Overview</button>
+      <button data-tab="models" aria-selected="false">Models</button>
+      <button data-tab="time" aria-selected="false">Time</button>
+      <button data-tab="tables" aria-selected="false">Tables</button>
+      <button data-tab="projects" aria-selected="false">Projects</button>
+    </div>
+    <div class="seg" id="range" role="tablist">
+      <button data-days="0" aria-selected="true">All</button>
+      <button data-days="90" aria-selected="false">90d</button>
+      <button data-days="30" aria-selected="false">30d</button>
+      <button data-days="7" aria-selected="false">7d</button>
+    </div>
+  </div>
+
+  <section class="tab on" id="tab-overview">
+    <div class="tiles" id="tiles"></div>
+    <div class="card">
+      <h2>Activity</h2>
+      <p class="sub">One cell per day, shaded by real tokens consumed (cache included).</p>
+      <div id="cal"></div>
+      <div class="legend" style="justify-content:flex-end">
+        <div class="scale"><span>Less</span><i style="background:var(--seq-0)"></i><i style="background:var(--seq-1)"></i><i style="background:var(--seq-2)"></i><i style="background:var(--seq-3)"></i><i style="background:var(--seq-4)"></i><i style="background:var(--seq-5)"></i><i style="background:var(--seq-6)"></i><span>More</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Where the tokens actually go</h2>
+      <p class="sub">Share of real consumption by token class.</p>
+      <div id="mix"></div>
+      <div class="legend" id="mix-legend"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-models">
+    <div class="card">
+      <h2>Real tokens per day by model</h2>
+      <p class="sub">Stacked daily totals &mdash; input + cache writes + cache reads + output.</p>
+      <div id="modelBars"></div>
+      <div class="legend" id="modelLegend"></div>
+    </div>
+    <div class="card">
+      <h2>Per model</h2>
+      <p class="sub">Every token class, the real share, and the equivalent API cost.</p>
+      <div style="overflow-x:auto"><table id="modelTable"></table></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-time">
+    <div class="card">
+      <h2>Hour of day</h2>
+      <p class="sub" id="hourSub"></p>
+      <div id="hourBars"></div>
+    </div>
+    <div class="card">
+      <h2>Weekday &times; hour</h2>
+      <p class="sub">Where the heavy hours really sit.</p>
+      <div id="whHeat"></div>
+    </div>
+    <div class="card">
+      <h2>Daily consumption</h2>
+      <p class="sub">Stacked by token class.</p>
+      <div id="dayBars"></div>
+      <div class="legend" id="dayLegend"></div>
+    </div>
+    <div class="card">
+      <h2>By month</h2>
+      <div style="overflow-x:auto"><table id="monthTable"></table></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-tables">
+    <div class="card">
+      <h2>Full breakdown</h2>
+      <p class="sub">Exact token counts per model.</p>
+      <div style="overflow-x:auto"><table id="fullTable"></table></div>
+    </div>
+    <div class="card">
+      <h2>Consumption distribution</h2>
+      <div style="overflow-x:auto"><table id="distTable"></table></div>
+    </div>
+    <div class="card">
+      <h2>Equivalent API cost</h2>
+      <p class="sub">List rates. Cache read 0.1&times; input (Fable&nbsp;5.1 flat $0.25/MTok), cache write 1.25&times; for 5m TTL and 2&times; for 1h TTL.</p>
+      <div style="overflow-x:auto"><table id="costTable"></table></div>
+    </div>
+    <div class="card">
+      <h2>App card vs reality</h2>
+      <p class="sub">What the desktop app's usage card reports, next to what actually happened. All-time, not affected by the range filter.</p>
+      <div style="overflow-x:auto"><table id="cmpTable"></table></div>
+      <div class="note" id="cmpNote"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-projects">
+    <div class="card">
+      <h2>By project</h2>
+      <p class="sub">Attributed by the working directory of each session.</p>
+      <div style="overflow-x:auto"><table id="projTable"></table></div>
+    </div>
+    <div class="card">
+      <h2>Heaviest sessions</h2>
+      <div style="overflow-x:auto"><table id="sessTable"></table></div>
+    </div>
+  </section>
+</div>
+<div class="tt" id="tt"></div>
+
+<script id="payload" type="application/json">/*__CCSTATS_PAYLOAD__*/</script>
+<script>
+const DATA = JSON.parse(document.getElementById('payload').textContent);
+const V = {IN:0,CW5M:1,CW1H:2,CR:3,OUT:4,REQ:5,THINK:6};
+const SERIES = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
+const cssv = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SEQ = ['--seq-0','--seq-1','--seq-2','--seq-3','--seq-4','--seq-5','--seq-6'].map(cssv);
+
+const DAYS = Object.keys(DATA.hours).sort();
+const MODELS = DATA.models.slice().sort((a,b) => allTokens(b) - allTokens(a));
+const COLOR = {};
+MODELS.forEach((m,i) => { COLOR[m] = cssv(SERIES[i % SERIES.length]); });
+
+const CLASSES = [
+  {key:'cr',   label:'Cache read',  idx:[V.CR],           color:cssv('--s1')},
+  {key:'cw',   label:'Cache write', idx:[V.CW5M,V.CW1H],  color:cssv('--s2')},
+  {key:'out',  label:'Output',      idx:[V.OUT],          color:cssv('--s3')},
+  {key:'in',   label:'Input',       idx:[V.IN],           color:cssv('--s4')},
+];
+
+function vec(){return [0,0,0,0,0,0,0]}
+function addv(a,b){for(let i=0;i<7;i++) a[i]+=b[i]; return a}
+function tokens(v){return v[V.IN]+v[V.CW5M]+v[V.CW1H]+v[V.CR]+v[V.OUT]}
+function costv(v,model){
+  const r = DATA.rates[model];
+  if(!r) return 0;
+  return (v[V.IN]*r.input + v[V.CW5M]*r.write5m + v[V.CW1H]*r.write1h + v[V.CR]*r.cacheRead + v[V.OUT]*r.output)/1e6;
+}
+function allTokens(m){
+  let t=0;
+  for(const d of DAYS) for(const h in DATA.hours[d]){const v=DATA.hours[d][h][m]; if(v) t+=tokens(v);}
+  return t;
+}
+
+function fmtTok(n){
+  if(n>=1e9) return (n/1e9).toFixed(n>=1e10?1:2)+'B';
+  if(n>=1e6) return (n/1e6).toFixed(n>=1e8?0:1)+'M';
+  if(n>=1e3) return (n/1e3).toFixed(n>=1e5?0:1)+'K';
+  return String(Math.round(n));
+}
+function fmtInt(n){return Math.round(n).toLocaleString('en-US')}
+function fmtUSD(n){
+  if(n>=1000) return '$'+Math.round(n).toLocaleString('en-US');
+  if(n>=1) return '$'+n.toFixed(2);
+  return '$'+n.toFixed(3);
+}
+function fmtPct(x){return (x*100).toFixed(x<0.001?3:1)+'%'}
+function hourLabel(h){
+  const ampm = h<12?'AM':'PM';
+  const hh = h%12===0?12:h%12;
+  return hh+' '+ampm;
+}
+const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function dayDate(d){const [y,m,dd]=d.split('-').map(Number); return new Date(y,m-1,dd);}
+
+/* ---------- range selection ---------- */
+let rangeDays = 0;
+function selectedDays(){
+  if(!DAYS.length) return [];
+  if(!rangeDays) return DAYS;
+  const last = dayDate(DAYS[DAYS.length-1]);
+  const cut = new Date(last); cut.setDate(cut.getDate() - (rangeDays-1));
+  return DAYS.filter(d => dayDate(d) >= cut);
+}
+
+function view(){
+  const days = selectedDays();
+  const byModel = {}, byDay = {}, byHour = [], wh = [];
+  for(let h=0;h<24;h++) byHour.push(vec());
+  for(let i=0;i<7;i++){ const row=[]; for(let h=0;h<24;h++) row.push(vec()); wh.push(row); }
+  const total = vec();
+  for(const d of days){
+    const dv = vec();
+    const dayModels = {};
+    const wd = dayDate(d).getDay();
+    for(const h in DATA.hours[d]){
+      const hi = Number(h);
+      for(const m in DATA.hours[d][h]){
+        const v = DATA.hours[d][h][m];
+        addv(byModel[m] ||= vec(), v);
+        addv(dayModels[m] ||= vec(), v);
+        addv(dv, v); addv(total, v);
+        addv(byHour[hi], v); addv(wh[wd][hi], v);
+      }
+    }
+    byDay[d] = {v:dv, byModel:dayModels};
+  }
+  const sessions = DATA.sessions.filter(s => {
+    const d = new Date(s[1]);
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    return days.includes(key);
+  });
+  return {days, byModel, byDay, byHour, wh, total, sessions};
+}
+
+/* ---------- tooltip ---------- */
+const tt = document.getElementById('tt');
+function showTip(evt, html){
+  tt.innerHTML = html;
+  tt.style.opacity = '1';
+  const pad = 14;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  const r = tt.getBoundingClientRect();
+  if(x + r.width > innerWidth - 8) x = evt.clientX - r.width - pad;
+  if(y + r.height > innerHeight - 8) y = evt.clientY - r.height - pad;
+  tt.style.left = x+'px'; tt.style.top = y+'px';
+}
+function hideTip(){ tt.style.opacity = '0'; }
+function bindTip(el, html){
+  el.addEventListener('mousemove', e => showTip(e, typeof html==='function'?html():html));
+  el.addEventListener('mouseleave', hideTip);
+}
+function tipRows(v, model){
+  const rows = [
+    ['Cache read', v[V.CR]], ['Cache write', v[V.CW5M]+v[V.CW1H]],
+    ['Output', v[V.OUT]], ['Input', v[V.IN]],
+  ].map(([k,n]) => '<div class="row"><span>'+k+'</span><span>'+fmtInt(n)+'</span></div>').join('');
+  return rows + '<div class="row" style="margin-top:4px;border-top:1px solid #444;padding-top:4px">'
+    + '<span>Total</span><span>'+fmtInt(tokens(v))+'</span></div>'
+    + '<div class="row"><span>Requests</span><span>'+fmtInt(v[V.REQ])+'</span></div>';
+}
+
+/* ---------- svg helpers ---------- */
+const NS = 'http://www.w3.org/2000/svg';
+function svg(w,h){
+  const s = document.createElementNS(NS,'svg');
+  s.setAttribute('viewBox','0 0 '+w+' '+h);
+  s.setAttribute('preserveAspectRatio','xMidYMid meet');
+  return s;
+}
+function el(tag, attrs, parent){
+  const n = document.createElementNS(NS, tag);
+  for(const k in attrs) n.setAttribute(k, attrs[k]);
+  if(parent) parent.appendChild(n);
+  return n;
+}
+function text(parent,x,y,str,opts={}){
+  const t = el('text',{x,y,fill:opts.fill||cssv('--text-3'),'font-size':opts.size||11,
+    'text-anchor':opts.anchor||'start','font-family':'inherit'},parent);
+  if(opts.weight) t.setAttribute('font-weight',opts.weight);
+  t.textContent = str;
+  return t;
+}
+/* Rounded top end, square baseline (4px radius), drawn as a path. */
+function barPath(x,y,w,h,r){
+  r = Math.max(0, Math.min(r, w/2, h));
+  return 'M'+x+','+(y+h)+'V'+(y+r)+'a'+r+','+r+' 0 0 1 '+r+',-'+r+'h'+(w-2*r)+'a'+r+','+r+' 0 0 1 '+r+','+r+'V'+(y+h)+'Z';
+}
+
+/* ---------- overview ---------- */
+function renderTiles(vw){
+  const t = vw.total;
+  const sessions = vw.sessions.length;
+  const active = vw.days.filter(d => tokens(vw.byDay[d].v) > 0).length;
+  let peakH = 0, peakV = -1;
+  vw.byHour.forEach((v,i) => { const x = tokens(v); if(x > peakV){peakV = x; peakH = i;} });
+  let top = '', best = -1;
+  for(const m in vw.byModel){ const x = tokens(vw.byModel[m]); if(x > best){best = x; top = m;} }
+  let cost = 0;
+  for(const m in vw.byModel) cost += costv(vw.byModel[m], m);
+  const perReq = t[V.REQ] ? tokens(t)/t[V.REQ] : 0;
+
+  const tiles = [
+    {k:'Real tokens', v:fmtTok(tokens(t)),
+     s:fmtInt(tokens(t))+' &middot; cache included &middot; '+fmtTok(perReq)+' per request', hero:true},
+    {k:'API requests', v:fmtInt(t[V.REQ]), s:'deduplicated by request id'},
+    {k:'Sessions', v:fmtInt(sessions), s:''},
+    {k:'Active days', v:fmtInt(active), s:'of '+fmtInt(vw.days.length)+' in range'},
+    {k:'Peak hour', v:hourLabel(peakH), s:fmtTok(peakV)+' tokens'},
+    {k:'Top model', v:(DATA.rates[top]?.label||'&mdash;'), s:fmtPct(tokens(t)?best/tokens(t):0)+' of real tokens'},
+    {k:'Equivalent cost', v:fmtUSD(cost), s:'at API list rates'},
+  ];
+  document.getElementById('tiles').innerHTML = tiles.map(x =>
+    '<div class="tile'+(x.hero?' hero':'')+'"><div class="k">'+x.k+'</div><div class="v">'+x.v+'</div>'
+    +(x.s?'<div class="s">'+x.s+'</div>':'')+'</div>').join('');
+}
+
+function renderCalendar(vw){
+  const host = document.getElementById('cal');
+  host.innerHTML = '';
+  if(!vw.days.length) return;
+  const first = dayDate(vw.days[0]), last = dayDate(vw.days[vw.days.length-1]);
+  const start = new Date(first); start.setDate(start.getDate() - start.getDay());
+  const weeks = Math.floor((last - start)/(7*864e5)) + 1;
+
+  const cell = 15, gap = 4, left = 34, top = 20;
+  const w = left + weeks*(cell+gap) + 10;
+  const h = top + 7*(cell+gap) + 6;
+  const s = svg(w,h);
+  // Render at natural size, left-aligned, instead of stretching to the card.
+  s.setAttribute('preserveAspectRatio','xMinYMin meet');
+  s.style.width = Math.round(w*1.7)+'px';
+  s.style.height = 'auto';
+  s.style.maxWidth = '100%';
+
+  const vals = vw.days.map(d => tokens(vw.byDay[d].v)).filter(x => x>0).sort((a,b)=>a-b);
+  const q = (p) => vals.length ? vals[Math.min(vals.length-1, Math.floor(p*vals.length))] : 0;
+  const stops = [q(0.2), q(0.4), q(0.6), q(0.8), q(0.95)];
+  const shade = (x) => {
+    if(!x) return SEQ[0];
+    for(let i=0;i<stops.length;i++) if(x <= stops[i]) return SEQ[i+1];
+    return SEQ[6];
+  };
+
+  let lastMonth = -1;
+  for(let wk=0; wk<weeks; wk++){
+    const d0 = new Date(start); d0.setDate(d0.getDate() + wk*7);
+    if(d0.getMonth() !== lastMonth){
+      lastMonth = d0.getMonth();
+      text(s, left + wk*(cell+gap), 11, d0.toLocaleString('en-US',{month:'short'}), {size:10});
+    }
+  }
+  WD.forEach((n,i) => { if(i%2===1) text(s, 0, top + i*(cell+gap) + cell - 2, n, {size:10}); });
+
+  for(let wk=0; wk<weeks; wk++){
+    for(let wd=0; wd<7; wd++){
+      const d = new Date(start); d.setDate(d.getDate() + wk*7 + wd);
+      if(d < first || d > last) continue;
+      const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      const bucket = vw.byDay[key];
+      const val = bucket ? tokens(bucket.v) : 0;
+      const r = el('rect',{x:left+wk*(cell+gap), y:top+wd*(cell+gap), width:cell, height:cell,
+        rx:3, fill:shade(val)}, s);
+      if(bucket){
+        bindTip(r, () => '<b>'+key+'</b> &middot; '+d.toLocaleString('en-US',{weekday:'long'})
+          +'<div style="margin-top:6px">'+tipRows(bucket.v)+'</div>');
+      }
+    }
+  }
+  host.appendChild(s);
+}
+
+function renderMix(vw){
+  const host = document.getElementById('mix');
+  host.innerHTML = '';
+  const t = vw.total, tot = tokens(t);
+  const w = 1000, h = 46;
+  const s = svg(w,h);
+  let x = 0;
+  const parts = CLASSES.map(c => ({c, n: c.idx.reduce((a,i) => a + t[i], 0)})).filter(p => p.n > 0);
+  parts.forEach((p, i) => {
+    const pw = Math.max(0, (p.n/tot)*w - (i < parts.length-1 ? 2 : 0));
+    const r = el('rect',{x, y:0, width:pw, height:22, rx:4, fill:p.c.color}, s);
+    bindTip(r, '<b>'+p.c.label+'</b><div class="row"><span>Tokens</span><span>'+fmtInt(p.n)+'</span></div>'
+      +'<div class="row"><span>Share</span><span>'+fmtPct(p.n/tot)+'</span></div>');
+    if(pw > 90){
+      text(s, x+8, 38, p.c.label+' '+fmtPct(p.n/tot), {size:12, fill:cssv('--text-2')});
+    }
+    x += pw + 2;
+  });
+  host.appendChild(s);
+  document.getElementById('mix-legend').innerHTML = parts.map(p =>
+    '<span class="i"><i class="sw" style="background:'+p.c.color+'"></i>'+p.c.label
+    +' <span style="color:var(--text-3)">'+fmtTok(p.n)+'</span></span>').join('');
+}
+
+/* ---------- models ---------- */
+function renderModelBars(vw){
+  const host = document.getElementById('modelBars');
+  host.innerHTML = '';
+  const days = vw.days;
+  if(!days.length) return;
+  const w = 1000, h = 260, padL = 54, padR = 8, padT = 10, padB = 26;
+  const s = svg(w,h);
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  const max = Math.max(...days.map(d => tokens(vw.byDay[d].v)), 1);
+  const band = plotW/days.length;
+  const bw = Math.min(24, Math.max(1, band - 2));
+
+  for(let i=0;i<=4;i++){
+    const y = padT + plotH - (i/4)*plotH;
+    el('line',{x1:padL, x2:w-padR, y1:y, y2:y, stroke:cssv('--line'), 'stroke-width':1}, s);
+    text(s, padL-8, y+3, fmtTok(max*i/4), {anchor:'end', size:10});
+  }
+
+  days.forEach((d,i) => {
+    const b = vw.byDay[d];
+    const x = padL + i*band + (band-bw)/2;
+    let y = padT + plotH;
+    const stack = MODELS.filter(m => b.byModel[m] && tokens(b.byModel[m]) > 0);
+    stack.forEach((m, k) => {
+      const val = tokens(b.byModel[m]);
+      const hh = (val/max)*plotH;
+      const gap = k < stack.length-1 ? 2 : 0;
+      const seg = Math.max(0.5, hh - gap);
+      y -= hh;
+      const isTop = k === stack.length-1;
+      const p = el('path',{d:barPath(x, y+gap, bw, seg, isTop?4:0), fill:COLOR[m]}, s);
+      bindTip(p, '<b>'+d+'</b> &middot; '+DATA.rates[m].label+'<div style="margin-top:6px">'+tipRows(b.byModel[m])+'</div>');
+    });
+    const hit = el('rect',{x:padL+i*band, y:padT, width:band, height:plotH, fill:'transparent'}, s);
+    bindTip(hit, '<b>'+d+'</b><div style="margin-top:6px">'+tipRows(b.v)+'</div>');
+  });
+
+  const step = Math.max(1, Math.ceil(days.length/12));
+  days.forEach((d,i) => {
+    if(i % step) return;
+    text(s, padL + i*band + band/2, h-8, d.slice(5), {anchor:'middle', size:10});
+  });
+  host.appendChild(s);
+
+  document.getElementById('modelLegend').innerHTML = MODELS.filter(m => vw.byModel[m]).map(m =>
+    '<span class="i"><i class="sw" style="background:'+COLOR[m]+'"></i>'+DATA.rates[m].label+'</span>').join('');
+}
+
+function modelRows(vw){
+  return MODELS.filter(m => vw.byModel[m]).map(m => ({m, v:vw.byModel[m]}))
+    .sort((a,b) => tokens(b.v) - tokens(a.v));
+}
+
+function renderModelTable(vw){
+  const rows = modelRows(vw);
+  const tot = tokens(vw.total) || 1;
+  let html = '<thead><tr><th>Model</th><th class="num">Requests</th><th class="num">Input</th>'
+    +'<th class="num">Cache write</th><th class="num">Cache read</th><th class="num">Output</th>'
+    +'<th class="num">Real total</th><th class="num">Share</th><th class="num">Cost</th></tr></thead><tbody>';
+  for(const {m,v} of rows){
+    html += '<tr><td><span class="name"><i class="sw" style="background:'+COLOR[m]+'"></i>'+DATA.rates[m].label+'</span></td>'
+      +'<td class="num">'+fmtInt(v[V.REQ])+'</td>'
+      +'<td class="num">'+fmtTok(v[V.IN])+'</td>'
+      +'<td class="num">'+fmtTok(v[V.CW5M]+v[V.CW1H])+'</td>'
+      +'<td class="num">'+fmtTok(v[V.CR])+'</td>'
+      +'<td class="num">'+fmtTok(v[V.OUT])+'</td>'
+      +'<td class="num">'+fmtTok(tokens(v))+'</td>'
+      +'<td class="num">'+fmtPct(tokens(v)/tot)+'</td>'
+      +'<td class="num">'+fmtUSD(costv(v,m))+'</td></tr>';
+  }
+  const t = vw.total;
+  let cost = 0; for(const {m,v} of rows) cost += costv(v,m);
+  html += '<tr class="total"><td>Total</td><td class="num">'+fmtInt(t[V.REQ])+'</td>'
+    +'<td class="num">'+fmtTok(t[V.IN])+'</td><td class="num">'+fmtTok(t[V.CW5M]+t[V.CW1H])+'</td>'
+    +'<td class="num">'+fmtTok(t[V.CR])+'</td><td class="num">'+fmtTok(t[V.OUT])+'</td>'
+    +'<td class="num">'+fmtTok(tokens(t))+'</td><td class="num">100%</td><td class="num">'+fmtUSD(cost)+'</td></tr>';
+  document.getElementById('modelTable').innerHTML = html + '</tbody>';
+}
+
+/* ---------- time ---------- */
+function renderHourBars(vw){
+  const host = document.getElementById('hourBars');
+  host.innerHTML = '';
+  const w = 1000, h = 220, padL = 54, padR = 8, padT = 10, padB = 26;
+  const s = svg(w,h);
+  const plotW = w-padL-padR, plotH = h-padT-padB;
+  const max = Math.max(...vw.byHour.map(tokens), 1);
+  const band = plotW/24, bw = Math.min(24, band-6);
+  for(let i=0;i<=4;i++){
+    const y = padT + plotH - (i/4)*plotH;
+    el('line',{x1:padL,x2:w-padR,y1:y,y2:y,stroke:cssv('--line'),'stroke-width':1}, s);
+    text(s, padL-8, y+3, fmtTok(max*i/4), {anchor:'end', size:10});
+  }
+  let peak = 0;
+  vw.byHour.forEach((v,i) => { if(tokens(v) > tokens(vw.byHour[peak])) peak = i; });
+  vw.byHour.forEach((v,i) => {
+    const val = tokens(v);
+    const hh = (val/max)*plotH;
+    const x = padL + i*band + (band-bw)/2;
+    const p = el('path',{d:barPath(x, padT+plotH-hh, bw, hh, 4),
+      fill: i===peak ? cssv('--s1') : cssv('--seq-2')}, s);
+    bindTip(p, '<b>'+hourLabel(i)+'</b><div style="margin-top:6px">'+tipRows(v)+'</div>');
+    if(i%3===0) text(s, x+bw/2, h-8, String(i).padStart(2,'0'), {anchor:'middle', size:10});
+  });
+  const pv = tokens(vw.byHour[peak]);
+  if(pv > 0){
+    const x = padL + peak*band + band/2;
+    const top = padT + plotH - (pv/max)*plotH;
+    // The tallest bar reaches the plot top, so tuck its label inside instead.
+    const inside = top - 6 < padT + 9;
+    text(s, x, inside ? top + 13 : top - 6, fmtTok(pv),
+      {anchor:'middle', size:11, fill:inside ? cssv('--surface-0') : cssv('--text-1'), weight:600});
+  }
+  host.appendChild(s);
+  document.getElementById('hourSub').innerHTML = 'Times are '+DATA.meta.tzLabel+'. Peak: <b style="color:var(--text-1)">'+hourLabel(peak)+'</b>.';
+}
+
+function renderWeekHeat(vw){
+  const host = document.getElementById('whHeat');
+  host.innerHTML = '';
+  const cell = 34, gap = 3, left = 42, top = 20;
+  const w = left + 24*(cell+gap), h = top + 7*(cell+gap) + 4;
+  const s = svg(w,h);
+  const flat = [];
+  for(let d=0;d<7;d++) for(let hh=0;hh<24;hh++) flat.push(tokens(vw.wh[d][hh]));
+  const vals = flat.filter(x=>x>0).sort((a,b)=>a-b);
+  const q = (p) => vals.length ? vals[Math.min(vals.length-1, Math.floor(p*vals.length))] : 0;
+  const stops = [q(0.2), q(0.4), q(0.6), q(0.8), q(0.95)];
+  const shade = (x) => { if(!x) return SEQ[0];
+    for(let i=0;i<stops.length;i++) if(x<=stops[i]) return SEQ[i+1];
+    return SEQ[6]; };
+  for(let hh=0;hh<24;hh+=2) text(s, left+hh*(cell+gap)+cell/2, 13, String(hh).padStart(2,'0'), {anchor:'middle', size:10});
+  for(let d=0;d<7;d++){
+    text(s, 0, top + d*(cell+gap) + cell/2 + 4, WD[d], {size:10});
+    for(let hh=0;hh<24;hh++){
+      const v = vw.wh[d][hh];
+      const r = el('rect',{x:left+hh*(cell+gap), y:top+d*(cell+gap), width:cell, height:cell, rx:4,
+        fill:shade(tokens(v))}, s);
+      if(tokens(v)>0) bindTip(r, '<b>'+WD[d]+' '+hourLabel(hh)+'</b><div style="margin-top:6px">'+tipRows(v)+'</div>');
+    }
+  }
+  host.appendChild(s);
+}
+
+function renderDayBars(vw){
+  const host = document.getElementById('dayBars');
+  host.innerHTML = '';
+  const days = vw.days;
+  if(!days.length) return;
+  const w = 1000, h = 240, padL = 54, padR = 8, padT = 10, padB = 26;
+  const s = svg(w,h);
+  const plotW = w-padL-padR, plotH = h-padT-padB;
+  const max = Math.max(...days.map(d => tokens(vw.byDay[d].v)), 1);
+  const band = plotW/days.length, bw = Math.min(24, Math.max(1, band-2));
+  for(let i=0;i<=4;i++){
+    const y = padT + plotH - (i/4)*plotH;
+    el('line',{x1:padL,x2:w-padR,y1:y,y2:y,stroke:cssv('--line'),'stroke-width':1}, s);
+    text(s, padL-8, y+3, fmtTok(max*i/4), {anchor:'end', size:10});
+  }
+  days.forEach((d,i) => {
+    const v = vw.byDay[d].v;
+    const x = padL + i*band + (band-bw)/2;
+    let y = padT + plotH;
+    const parts = CLASSES.map(c => ({c, n:c.idx.reduce((a,k)=>a+v[k],0)})).filter(p=>p.n>0);
+    parts.forEach((p,k) => {
+      const hh = (p.n/max)*plotH;
+      const gap = k < parts.length-1 ? 2 : 0;
+      y -= hh;
+      el('path',{d:barPath(x, y+gap, bw, Math.max(0.5, hh-gap), k===parts.length-1?4:0), fill:p.c.color}, s);
+    });
+    const hit = el('rect',{x:padL+i*band, y:padT, width:band, height:plotH, fill:'transparent'}, s);
+    bindTip(hit, '<b>'+d+'</b><div style="margin-top:6px">'+tipRows(v)+'</div>');
+  });
+  const step = Math.max(1, Math.ceil(days.length/12));
+  days.forEach((d,i) => { if(i%step) return;
+    text(s, padL+i*band+band/2, h-8, d.slice(5), {anchor:'middle', size:10}); });
+  host.appendChild(s);
+  document.getElementById('dayLegend').innerHTML = CLASSES.map(c =>
+    '<span class="i"><i class="sw" style="background:'+c.color+'"></i>'+c.label+'</span>').join('');
+}
+
+function renderMonthTable(vw){
+  const months = {};
+  for(const d of vw.days){
+    const k = d.slice(0,7);
+    const b = months[k] ||= {v:vec(), cost:0, days:0};
+    addv(b.v, vw.byDay[d].v);
+    if(tokens(vw.byDay[d].v)>0) b.days++;
+    for(const m in vw.byDay[d].byModel) b.cost += costv(vw.byDay[d].byModel[m], m);
+  }
+  const keys = Object.keys(months).sort();
+  let html = '<thead><tr><th>Month</th><th class="num">Active days</th><th class="num">Requests</th>'
+    +'<th class="num">Cache read</th><th class="num">Cache write</th><th class="num">Output</th>'
+    +'<th class="num">Real total</th><th class="num">Cost</th></tr></thead><tbody>';
+  for(const k of keys){
+    const b = months[k];
+    html += '<tr><td>'+k+'</td><td class="num">'+b.days+'</td><td class="num">'+fmtInt(b.v[V.REQ])+'</td>'
+      +'<td class="num">'+fmtTok(b.v[V.CR])+'</td><td class="num">'+fmtTok(b.v[V.CW5M]+b.v[V.CW1H])+'</td>'
+      +'<td class="num">'+fmtTok(b.v[V.OUT])+'</td><td class="num">'+fmtTok(tokens(b.v))+'</td>'
+      +'<td class="num">'+fmtUSD(b.cost)+'</td></tr>';
+  }
+  document.getElementById('monthTable').innerHTML = html+'</tbody>';
+}
+
+/* ---------- tables ---------- */
+function renderFullTable(vw){
+  const rows = modelRows(vw);
+  let html = '<thead><tr><th>Model</th><th class="num">Requests</th><th class="num">Input</th>'
+    +'<th class="num">Cache write 5m</th><th class="num">Cache write 1h</th><th class="num">Cache read</th>'
+    +'<th class="num">Output</th><th class="num">Thinking</th><th class="num">Real total</th></tr></thead><tbody>';
+  for(const {m,v} of rows){
+    html += '<tr><td><span class="name"><i class="sw" style="background:'+COLOR[m]+'"></i>'+DATA.rates[m].label+'</span></td>'
+      +'<td class="num">'+fmtInt(v[V.REQ])+'</td><td class="num">'+fmtInt(v[V.IN])+'</td>'
+      +'<td class="num">'+fmtInt(v[V.CW5M])+'</td><td class="num">'+fmtInt(v[V.CW1H])+'</td>'
+      +'<td class="num">'+fmtInt(v[V.CR])+'</td><td class="num">'+fmtInt(v[V.OUT])+'</td>'
+      +'<td class="num">'+fmtInt(v[V.THINK])+'</td><td class="num">'+fmtInt(tokens(v))+'</td></tr>';
+  }
+  const t = vw.total;
+  html += '<tr class="total"><td>Total</td><td class="num">'+fmtInt(t[V.REQ])+'</td><td class="num">'+fmtInt(t[V.IN])+'</td>'
+    +'<td class="num">'+fmtInt(t[V.CW5M])+'</td><td class="num">'+fmtInt(t[V.CW1H])+'</td>'
+    +'<td class="num">'+fmtInt(t[V.CR])+'</td><td class="num">'+fmtInt(t[V.OUT])+'</td>'
+    +'<td class="num">'+fmtInt(t[V.THINK])+'</td><td class="num">'+fmtInt(tokens(t))+'</td></tr>';
+  document.getElementById('fullTable').innerHTML = html+'</tbody>';
+}
+
+function renderDistTable(vw){
+  const t = vw.total, tot = tokens(t) || 1;
+  const rows = [
+    ['Cache read', t[V.CR], cssv('--s1')],
+    ['Cache write', t[V.CW5M]+t[V.CW1H], cssv('--s2')],
+    ['Output', t[V.OUT], cssv('--s3')],
+    ['Input (raw)', t[V.IN], cssv('--s4')],
+  ];
+  let html = '<thead><tr><th>Token class</th><th class="num">Tokens</th><th class="num">Share</th></tr></thead><tbody>';
+  for(const [k,n,c] of rows){
+    html += '<tr><td><span class="name"><i class="sw" style="background:'+c+'"></i>'+k+'</span></td>'
+      +'<td class="num">'+fmtInt(n)+'</td><td class="num">'+fmtPct(n/tot)+'</td></tr>';
+  }
+  html += '<tr class="total"><td>Total</td><td class="num">'+fmtInt(tot)+'</td><td class="num">100%</td></tr>';
+  document.getElementById('distTable').innerHTML = html+'</tbody>';
+}
+
+function renderCostTable(vw){
+  const rows = modelRows(vw).map(({m,v}) => {
+    const r = DATA.rates[m];
+    return {m, v, r,
+      cIn: v[V.IN]*r.input/1e6,
+      cW: (v[V.CW5M]*r.write5m + v[V.CW1H]*r.write1h)/1e6,
+      cR: v[V.CR]*r.cacheRead/1e6,
+      cO: v[V.OUT]*r.output/1e6};
+  }).sort((a,b) => (b.cIn+b.cW+b.cR+b.cO) - (a.cIn+a.cW+a.cR+a.cO));
+  let html = '<thead><tr><th>Model</th><th class="num">Rate in/out</th><th class="num">Input</th>'
+    +'<th class="num">Cache write</th><th class="num">Cache read</th><th class="num">Output</th>'
+    +'<th class="num">Total</th></tr></thead><tbody>';
+  let T = [0,0,0,0];
+  for(const x of rows){
+    T[0]+=x.cIn; T[1]+=x.cW; T[2]+=x.cR; T[3]+=x.cO;
+    html += '<tr><td><span class="name"><i class="sw" style="background:'+COLOR[x.m]+'"></i>'+x.r.label
+      +(x.r.known?'':' <span style="color:var(--s4)">*</span>')+'</span></td>'
+      +'<td class="num" style="color:var(--text-3)">$'+x.r.input+' / $'+x.r.output+'</td>'
+      +'<td class="num">'+fmtUSD(x.cIn)+'</td><td class="num">'+fmtUSD(x.cW)+'</td>'
+      +'<td class="num">'+fmtUSD(x.cR)+'</td><td class="num">'+fmtUSD(x.cO)+'</td>'
+      +'<td class="num">'+fmtUSD(x.cIn+x.cW+x.cR+x.cO)+'</td></tr>';
+  }
+  html += '<tr class="total"><td>Total</td><td></td><td class="num">'+fmtUSD(T[0])+'</td>'
+    +'<td class="num">'+fmtUSD(T[1])+'</td><td class="num">'+fmtUSD(T[2])+'</td>'
+    +'<td class="num">'+fmtUSD(T[3])+'</td><td class="num">'+fmtUSD(T[0]+T[1]+T[2]+T[3])+'</td></tr>';
+  document.getElementById('costTable').innerHTML = html+'</tbody>';
+}
+
+function renderCompare(){
+  // All-time, independent of the range filter.
+  const real = {};
+  for(const d of DAYS) for(const h in DATA.hours[d]) for(const m in DATA.hours[d][h])
+    addv(real[m] ||= vec(), DATA.hours[d][h][m]);
+  const models = Object.keys(DATA.appBasis).sort((a,b) =>
+    (DATA.appBasis[b][V.OUT]||0) - (DATA.appBasis[a][V.OUT]||0));
+  let appOut = 0;
+  for(const m of models) appOut += DATA.appBasis[m][V.OUT];
+  let html = '<thead><tr><th>Model</th><th class="num">Card &quot;in&quot;</th><th class="num">Card &quot;out&quot;</th>'
+    +'<th class="num">Card share</th><th class="num">Real tokens</th><th class="num">Real share</th>'
+    +'<th class="num">Hidden by the card</th></tr></thead><tbody>';
+  let realTot = 0;
+  for(const m of models) realTot += real[m] ? tokens(real[m]) : 0;
+  for(const m of models){
+    const a = DATA.appBasis[m], r = real[m] || vec();
+    const rt = tokens(r);
+    html += '<tr><td><span class="name"><i class="sw" style="background:'+(COLOR[m]||cssv('--text-3'))+'"></i>'
+      +(DATA.rates[m]?.label || m)+'</span></td>'
+      +'<td class="num">'+fmtTok(a[V.IN])+'</td><td class="num">'+fmtTok(a[V.OUT])+'</td>'
+      +'<td class="num">'+fmtPct(appOut?a[V.OUT]/appOut:0)+'</td>'
+      +'<td class="num">'+fmtTok(rt)+'</td><td class="num">'+fmtPct(realTot?rt/realTot:0)+'</td>'
+      +'<td class="num">'+(a[V.IN] ? (rt/a[V.IN]).toFixed(0)+'&times;' : '&mdash;')+'</td></tr>';
+  }
+  document.getElementById('cmpTable').innerHTML = html+'</tbody>';
+
+  const m = DATA.meta;
+  document.getElementById('cmpNote').innerHTML =
+    'The card&rsquo;s <b>in</b> column is the raw <span class="mono">input_tokens</span> field only &mdash; '
+    +'<span class="mono">cache_read_input_tokens</span> and <span class="mono">cache_creation_input_tokens</span> are left out entirely, '
+    +'and its headline &ldquo;total tokens&rdquo; is the sum of output tokens alone.<br><br>'
+    +'On top of that, one API response is written to the transcript once per content block, each copy repeating the same usage object, '
+    +'and streaming adds an early snapshot whose output count is still growing. '
+    +'This scan saw <b>'+fmtInt(m.rawRecords)+'</b> usage records for <b>'+fmtInt(m.countedRecords)+'</b> distinct requests '
+    +'(<b>'+m.inflation.toFixed(2)+'&times;</b> inflation; '+fmtInt(m.duplicateRecords)+' duplicates removed, '
+    +fmtInt(m.partialRecords)+' of them superseded streaming snapshots). '
+    +'The card counts per record; this report counts per request, keeping each request&rsquo;s final usage.';
+}
+
+/* ---------- projects ---------- */
+function renderProjects(vw){
+  const byProj = {}, list = vw.sessions;
+  for(const s of list){
+    const key = s[9] || '(unknown)';
+    const b = byProj[key] ||= {v:vec(), sessions:0, branches:new Set(), cost:0};
+    b.sessions++;
+    if(s[10]) b.branches.add(s[10]);
+    const v = vec();
+    v[V.IN]=s[4]; v[V.CW5M]=s[5]; v[V.CW1H]=s[6]; v[V.CR]=s[7]; v[V.OUT]=s[8]; v[V.REQ]=s[3];
+    addv(b.v, v);
+    b.cost += costv(v, s[11]);
+  }
+  const keys = Object.keys(byProj).sort((a,b) => tokens(byProj[b].v) - tokens(byProj[a].v));
+  const tot = keys.reduce((a,k) => a + tokens(byProj[k].v), 0) || 1;
+  let html = '<thead><tr><th>Project</th><th class="num">Sessions</th><th class="num">Branches</th>'
+    +'<th class="num">Requests</th><th class="num">Real tokens</th><th class="num">Share</th>'
+    +'<th class="num">Cost</th></tr></thead><tbody>';
+  for(const k of keys){
+    const b = byProj[k];
+    html += '<tr><td class="mono">'+k.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</td>'
+      +'<td class="num">'+fmtInt(b.sessions)+'</td><td class="num">'+b.branches.size+'</td>'
+      +'<td class="num">'+fmtInt(b.v[V.REQ])+'</td><td class="num">'+fmtTok(tokens(b.v))+'</td>'
+      +'<td class="num">'+fmtPct(tokens(b.v)/tot)+'</td><td class="num">'+fmtUSD(b.cost)+'</td></tr>';
+  }
+  document.getElementById('projTable').innerHTML = html+'</tbody>';
+
+  const sess = list.map(s => {
+    const v = vec();
+    v[V.IN]=s[4]; v[V.CW5M]=s[5]; v[V.CW1H]=s[6]; v[V.CR]=s[7]; v[V.OUT]=s[8]; v[V.REQ]=s[3];
+    return {id:s[0], start:s[1], end:s[2], cwd:s[9], branch:s[10], model:s[11], v, cost:costv(v, s[11])};
+  }).sort((a,b) => tokens(b.v) - tokens(a.v)).slice(0, 40);
+  let h2 = '<thead><tr><th>Started</th><th>Project</th><th>Model</th><th class="num">Requests</th>'
+    +'<th class="num">Real tokens</th><th class="num">Duration</th><th class="num">Cost</th></tr></thead><tbody>';
+  for(const s of sess){
+    const mins = Math.max(1, Math.round((s.end-s.start)/6e4));
+    h2 += '<tr><td>'+new Date(s.start).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'</td>'
+      +'<td class="mono">'+(s.cwd||'&mdash;').split(/[\\/]/).pop()+'</td>'
+      +'<td>'+(DATA.rates[s.model]?.label || '&mdash;')+'</td>'
+      +'<td class="num">'+fmtInt(s.v[V.REQ])+'</td><td class="num">'+fmtTok(tokens(s.v))+'</td>'
+      +'<td class="num">'+(mins>=60 ? (mins/60).toFixed(1)+'h' : mins+'m')+'</td>'
+      +'<td class="num">'+fmtUSD(s.cost)+'</td></tr>';
+  }
+  document.getElementById('sessTable').innerHTML = h2+'</tbody>';
+}
+
+/* ---------- wiring ---------- */
+function renderAll(){
+  hideTip();
+  const vw = view();
+  renderTiles(vw); renderCalendar(vw); renderMix(vw);
+  renderModelBars(vw); renderModelTable(vw);
+  renderHourBars(vw); renderWeekHeat(vw); renderDayBars(vw); renderMonthTable(vw);
+  renderFullTable(vw); renderDistTable(vw); renderCostTable(vw); renderCompare();
+  renderProjects(vw);
+}
+
+document.getElementById('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  for(const x of e.currentTarget.children) x.setAttribute('aria-selected', String(x===b));
+  for(const s of document.querySelectorAll('.tab')) s.classList.remove('on');
+  document.getElementById('tab-'+b.dataset.tab).classList.add('on');
+  hideTip();
+});
+document.getElementById('range').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  for(const x of e.currentTarget.children) x.setAttribute('aria-selected', String(x===b));
+  rangeDays = Number(b.dataset.days);
+  renderAll();
+});
+
+const m = DATA.meta;
+const span = m.firstTs
+  ? new Date(m.firstTs).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+    +' \u2192 '+new Date(m.lastTs).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+  : 'no data';
+document.getElementById('meta').innerHTML = span
+  + ' &middot; ' + fmtInt(m.countedRecords) + ' API requests, deduplicated from ' + fmtInt(m.rawRecords) + ' transcript records'
+  + ' &middot; times in ' + m.tzLabel
+  + ' &middot; generated ' + new Date(m.generatedAt).toLocaleString('en-US');
+
+renderAll();
+</script>
+</body>
+</html>

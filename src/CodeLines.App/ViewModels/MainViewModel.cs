@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using CodeLines.Core.Abstractions;
+using CodeLines.Core.AiUsage;
 using CodeLines.Core.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -16,7 +17,7 @@ public sealed partial class MainViewModel : ObservableObject
     private AppSettings _settings = new();
 
     public MainViewModel(IProjectRepository repository, ISourceScanner scanner, IExportService exportService,
-        Action<string> applyTheme, IGitHistoryAnalyzer? gitAnalyzer = null)
+        Action<string> applyTheme, IGitHistoryAnalyzer? gitAnalyzer = null, IAiUsageReportBuilder? aiUsage = null)
     {
         _repository = repository;
         _scanner = scanner;
@@ -25,6 +26,7 @@ public sealed partial class MainViewModel : ObservableObject
         HistoryResults.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HistoryTotals));
         _gitAnalyzer = gitAnalyzer ?? new CodeLines.Core.Services.GitHistoryAnalyzer(
             new CodeLines.Core.Services.FileClassifier(new CodeLines.Core.Services.LanguageRegistry()));
+        _aiUsage = aiUsage ?? new AiUsageReportBuilder();
     }
 
     public ObservableCollection<ProjectItemViewModel> Projects { get; } = [];
@@ -69,6 +71,7 @@ public sealed partial class MainViewModel : ObservableObject
         _applyTheme(SelectedTheme);
         if (_settings.LastSnapshot is not null) ApplySnapshot(_settings.LastSnapshot);
         LoadHistorySettings();
+        LoadAiUsageSettings();
         OnPropertyChanged(nameof(SettingsPath));
         OnPropertyChanged(nameof(LastScanText));
     }
@@ -222,6 +225,7 @@ public sealed partial class MainViewModel : ObservableObject
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         _settings.Theme = SelectedTheme;
         SaveHistorySettings();
+        SaveAiUsageSettings();
     }
 
     private void ApplySnapshot(ScanSnapshot snapshot)

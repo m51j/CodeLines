@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Agents Usage</title>
+<style>
+:root{color-scheme:dark;--surface-0:#111110;--surface-1:#191918;--surface-2:#222221;--surface-3:#2c2c2a;--line:#33332f;--text-1:#f5f5f2;--text-3:#8b8a80}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--surface-0);color:var(--text-1);font:14px/1.5 ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;display:flex;flex-direction:column}
+nav{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--surface-1);flex-wrap:wrap}
+nav .brand{font-weight:600;font-size:14px;white-space:nowrap}
+nav .gen{color:var(--text-3);font-size:12px;margin-left:auto;white-space:nowrap}
+.seg{display:flex;flex-wrap:wrap;background:var(--surface-2);border-radius:9px;padding:3px;gap:2px}
+.seg button{appearance:none;border:0;background:transparent;color:var(--text-3);font:inherit;font-size:13px;padding:5px 12px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.seg button[aria-selected="true"]{background:var(--surface-3);color:var(--text-1)}
+.seg button:hover{color:var(--text-1)}
+.seg .n{color:var(--text-3);font-size:11px;margin-left:4px;font-variant-numeric:tabular-nums}
+main{flex:1;position:relative;min-height:0}
+iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:none;background:var(--surface-0)}
+iframe.on{display:block}
+</style>
+</head>
+<body>
+<nav>
+  <span class="brand">AI agents</span>
+  <div class="seg" id="tabs" role="tablist">
+      /*__CCSTATS_TABS__*/
+  </div>
+  <span class="gen">generated /*__CCSTATS_GENERATED__*/</span>
+</nav>
+<main id="main"></main>
+<script>
+const tabs = document.getElementById('tabs');
+const main = document.getElementById('main');
+const frames = {};
+function show(id){
+  const b = tabs.querySelector('button[data-id="'+CSS.escape(id)+'"]') || tabs.querySelector('button');
+  for(const x of tabs.children) x.setAttribute('aria-selected', String(x === b));
+  // Frames load on first view only, then keep their state (tab, range filter).
+  if(!frames[b.dataset.id]){
+    const f = document.createElement('iframe');
+    f.src = b.dataset.href;
+    f.title = b.textContent;
+    main.appendChild(f);
+    frames[b.dataset.id] = f;
+  }
+  for(const k in frames) frames[k].classList.toggle('on', k === b.dataset.id);
+  if(location.hash.slice(1) !== b.dataset.id) history.replaceState(null, '', '#'+b.dataset.id);
+}
+tabs.addEventListener('click', e => { const b = e.target.closest('button'); if(b) show(b.dataset.id); });
+addEventListener('hashchange', () => show(location.hash.slice(1)));
+show(location.hash.slice(1));
+</script>
+</body>
+</html>

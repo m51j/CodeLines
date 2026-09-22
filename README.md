@@ -113,3 +113,58 @@ Refresh now reports the current project, discovery/comparison stage, commit, fil
 Totals accumulate as projects finish and include added, deleted, estimated modified, net lines, files, binary files, and activity commits. They are explicitly partial during work or after cancellation, and show how many repositories were incomplete/unavailable. Totals sum each configured project separately; overlapping project folders are not deduplicated. Refresh and source-scan actions are disabled during analysis. Cancel works from the history page or the shared toolbar, and export stays disabled until the run finishes. With no enabled projects, the page explains how to start instead of reporting success.
 
 JSON history exports include a `totals` object. CSV adds a `RecordType` column (`File`, `ProjectStatus`, or `Totals`) and one aggregate row; filter to `File` before summing file rows to avoid counting the aggregate again.
+
+## AI usage
+
+The **AI usage** tab shows the token usage and equivalent API cost of the AI coding agents on this computer. It is a C# port of [ccstats](D:/min/2026/ccstats): the tab displays the same dashboard, pages and charts that ccstats generates, fed by the same data. Everything is read from local files; nothing is uploaded.
+
+| Agent | Where the data comes from |
+| --- | --- |
+| Claude Code | `~/.claude/projects/**/*.jsonl`, plus any extra folders listed in Settings |
+| Codex | `~/.codex/sessions` and `~/.codex/archived_sessions` |
+| Antigravity IDE, Antigravity, agy | `~/.gemini/<variant>/conversations/*.db` |
+| ZCode | `~/.zcode/cli/db/db.sqlite` |
+| opencode, Kilo Code | `~/.local/share/{opencode,kilo}/*.db` |
+| Cline | `~/.cline/data/sessions` |
+| Copilot Chat | `%APPDATA%\Code\User\workspaceStorage\*\chatSessions` |
+| Hermes | `%LOCALAPPDATA%\hermes\state.db` |
+| LM Studio | `~/.lmstudio/conversations` |
+
+### Using the tab
+
+- The tab refreshes the first time it is opened in each session. **Refresh** re-reads only files that changed. **Full rescan** ignores the cache and re-reads everything.
+- **Open in browser** opens the report in your default browser.
+- **Export…** saves either the whole report as one self-contained HTML file or the combined data as JSON.
+- In Settings you can:
+  - hide the tab;
+  - turn off automatic refresh;
+  - count raw Claude Code transcript records instead of deduplicated requests;
+  - bucket times in UTC;
+  - turn individual agents off;
+  - add extra Claude Code transcript folders.
+- The Projects page shows the AI tokens and cost of the sessions that ran inside each project folder. The Dashboard shows total AI tokens for the last 30 days.
+
+### How the numbers are counted
+
+The counting rules are the same as in ccstats:
+
+- Claude Code responses are deduplicated by request id. When a request appears more than once, the copy with the most output wins.
+- "Real tokens" includes cache reads and cache writes.
+- Costs are equivalent list prices, not a bill. For other agents, the cost the agent recorded is used first, then a list price. When neither exists the cost shows "—", and a cost that covers only some of the tokens is marked with `*`.
+
+### Where the files are kept
+
+Pages, caches and the WebView2 profile are stored under `%LOCALAPPDATA%\CodeLines`.
+
+The report is shown with Microsoft Edge WebView2, which Windows 11 already includes. If the runtime is missing, the tab says so and **Open in browser** still works.
+
+### Keeping in step with ccstats
+
+The HTML templates in `src/CodeLines.Core/AiUsage/Templates` are copied verbatim from ccstats; see `UPSTREAM.md` there.
+
+`ClaudeParityTests` compares the C# payloads with payloads that ccstats itself produced for the fixture in `tests/CodeLines.Tests/AiUsage/Fixtures`. To regenerate them, run `node generate-goldens.mjs <ccstats folder>` in that folder.
+
+The C# port differs from ccstats in two intentional ways:
+
+- It knows the price of Claude Opus 5.5.
+- It counts only in-window records for the "raw records" figure, so the inflation ratio is correct when a date window is set.

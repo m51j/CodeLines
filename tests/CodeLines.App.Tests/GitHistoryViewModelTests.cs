@@ -163,55 +163,45 @@ public sealed class GitHistoryViewModelTests
     [Fact]
     public void History_page_renders_in_both_themes()
     {
-        Exception? failure = null;
-        var thread = new Thread(() =>
+        WpfTestHost.Run(() =>
         {
-            try
+            var window = new MainWindow();
+            var vm = Create(new(), new());
+            vm.GitHistoryEnabled = true; vm.CurrentPage = "Code changes";
+            vm.HistorySummary = "Snapshot 2026-09-06 • 2026-08-30 — 2026-09-06 • Activity • SourceOnly. Refresh to check current branch / HEAD.";
+            var result = new GitProjectHistory { ProjectName = "Example project", Branch = "main", Head = new string('a', 40), Commits = 12,
+                Files = [new("src/Program.cs", 150, 40, 25, false), new("src/ملف.cs", 30, 10, 8, false)] };
+            vm.HistoryResults.Add(result); vm.SelectedHistory = result;
+            vm.IsHistoryRunning = vm.IsBusy = true;
+            vm.HistorySummary = "Analysis in progress. Totals include processed projects only; export is available when finished.";
+            vm.HistoryTotalsText = "Partial totals • 1/7 projects processed • 0 incomplete/unavailable";
+            vm.HistoryProgressText = "Project 2/7 — Current project • Analyzing files";
+            vm.HistoryWorkText = "12/30 commits complete • 18 remaining • Files in current comparison: 8/20 (12 remaining) • 5 projects after this one";
+            vm.HistoryCurrentPath = "Commit abc12345 • src/Services/GitHistoryAnalyzer.cs";
+            vm.HistoryTimingText = "Elapsed 1m 12s • Current project 0m 45s • Current project ETA ≈ 1m 05s (varies by commit size)";
+            vm.HistoryProjectProgress = 41; vm.ProgressValue = 20;
+            window.DataContext = vm;
+            var root = (System.Windows.Controls.Grid)window.Content;
+            root.SetResourceReference(System.Windows.Controls.Panel.BackgroundProperty, "AppBackgroundBrush");
+            var output = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../artifacts/history-ui"));
+            Directory.CreateDirectory(output);
+            foreach (var theme in new[] { "Light", "Dark" })
+            foreach (var width in new[] { 1440, 1100 })
             {
-
-                var app = new App(); app.InitializeComponent();
-                var window = new MainWindow();
-                var vm = Create(new(), new());
-                vm.GitHistoryEnabled = true; vm.CurrentPage = "Code changes";
-                vm.HistorySummary = "Snapshot 2026-09-06 • 2026-08-30 — 2026-09-06 • Activity • SourceOnly. Refresh to check current branch / HEAD.";
-                var result = new GitProjectHistory { ProjectName = "Example project", Branch = "main", Head = new string('a', 40), Commits = 12,
-                    Files = [new("src/Program.cs", 150, 40, 25, false), new("src/ملف.cs", 30, 10, 8, false)] };
-                vm.HistoryResults.Add(result); vm.SelectedHistory = result;
-                vm.IsHistoryRunning = vm.IsBusy = true;
-                vm.HistorySummary = "Analysis in progress. Totals include processed projects only; export is available when finished.";
-                vm.HistoryTotalsText = "Partial totals • 1/7 projects processed • 0 incomplete/unavailable";
-                vm.HistoryProgressText = "Project 2/7 — Current project • Analyzing files";
-                vm.HistoryWorkText = "12/30 commits complete • 18 remaining • Files in current comparison: 8/20 (12 remaining) • 5 projects after this one";
-                vm.HistoryCurrentPath = "Commit abc12345 • src/Services/GitHistoryAnalyzer.cs";
-                vm.HistoryTimingText = "Elapsed 1m 12s • Current project 0m 45s • Current project ETA ≈ 1m 05s (varies by commit size)";
-                vm.HistoryProjectProgress = 41; vm.ProgressValue = 20;
-                window.DataContext = vm;
-                var root = (System.Windows.Controls.Grid)window.Content;
-                root.SetResourceReference(System.Windows.Controls.Panel.BackgroundProperty, "AppBackgroundBrush");
-                var output = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../artifacts/history-ui"));
-                Directory.CreateDirectory(output);
-                foreach (var theme in new[] { "Light", "Dark" })
-                foreach (var width in new[] { 1440, 1100 })
-                {
-                    ThemeManager.Apply(theme);
-                    var height = width == 1440 ? 860 : 660;
-                    root.Measure(new Size(width, height)); root.Arrange(new Rect(0, 0, width, height)); root.UpdateLayout();
-                    var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(root);
-                    var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                    using var file = File.Create(Path.Combine(output, $"history-{theme}-{width}.png")); encoder.Save(file);
-                    Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("HistoryPage")).Visibility);
-                    Assert.True(((FrameworkElement)window.FindName("HistoryProjectGrid")).ActualHeight >= 80);
-                    Assert.True(((FrameworkElement)window.FindName("HistoryFilesGrid")).ActualHeight >= 80);
-                }
-                vm.GitHistoryEnabled = false; root.UpdateLayout();
-                Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("HistoryPage")).Visibility);
-                window.Close(); app.Shutdown();
+                ThemeManager.Apply(theme);
+                var height = width == 1440 ? 860 : 660;
+                root.Measure(new Size(width, height)); root.Arrange(new Rect(0, 0, width, height)); root.UpdateLayout();
+                var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(root);
+                var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                using var file = File.Create(Path.Combine(output, $"history-{theme}-{width}.png")); encoder.Save(file);
+                Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("HistoryPage")).Visibility);
+                Assert.True(((FrameworkElement)window.FindName("HistoryProjectGrid")).ActualHeight >= 80);
+                Assert.True(((FrameworkElement)window.FindName("HistoryFilesGrid")).ActualHeight >= 80);
             }
-            catch (Exception ex) { failure = ex; }
+            vm.GitHistoryEnabled = false; root.UpdateLayout();
+            Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("HistoryPage")).Visibility);
+            window.Close();
         });
-        thread.SetApartmentState(ApartmentState.STA); thread.Start();
-        Assert.True(thread.Join(TimeSpan.FromSeconds(30)), "WPF render timed out.");
-        if (failure is not null) throw new Exception("WPF smoke test failed", failure);
     }
 
     private static MainViewModel Create(MemoryRepository repository, FakeAnalyzer analyzer) => new(repository,

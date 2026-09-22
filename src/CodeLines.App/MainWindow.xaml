@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
         Title="CodeLines — Project Intelligence" Icon="Assets/CodeLines.ico" Width="1440" Height="900" MinWidth="1100" MinHeight="700"
         WindowStartupLocation="CenterScreen"
@@ -36,6 +37,7 @@
                     <Button Style="{StaticResource NavButton}" Content="▰   Projects" Command="{Binding NavigateCommand}" CommandParameter="Projects" />
                     <Button Style="{StaticResource NavButton}" Content="⌁   Analysis" Command="{Binding NavigateCommand}" CommandParameter="Analysis" />
                     <Button Style="{StaticResource NavButton}" Content="⟳   Code changes" Command="{Binding NavigateCommand}" CommandParameter="Code changes" Visibility="{Binding GitHistoryEnabled, Converter={StaticResource HistoryVisibility}}" />
+                    <Button Style="{StaticResource NavButton}" Content="✦   AI usage" Command="{Binding NavigateCommand}" CommandParameter="AI usage" Visibility="{Binding AiUsageEnabled, Converter={StaticResource HistoryVisibility}}" />
                     <Button Style="{StaticResource NavButton}" Content="⚙   Settings" Command="{Binding NavigateCommand}" CommandParameter="Settings" />
                 </StackPanel>
                 <Border Grid.Row="2" Margin="16" Padding="14" Background="#1E293B" CornerRadius="10">
@@ -83,12 +85,13 @@
                         </Style>
                     </Grid.Style>
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="18" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                    <UniformGrid Columns="5">
+                    <UniformGrid Columns="6">
                         <Border Style="{StaticResource Card}" Margin="0,0,10,0"><StackPanel><TextBlock Text="PROJECTS" Opacity="0.6" FontSize="11" FontWeight="Bold" /><TextBlock Text="{Binding TotalProjects, StringFormat=N0}" FontSize="30" FontWeight="SemiBold" Margin="0,10,0,0" /></StackPanel></Border>
                         <Border Style="{StaticResource Card}" Margin="0,0,10,0"><StackPanel><TextBlock Text="FILES" Opacity="0.6" FontSize="11" FontWeight="Bold" /><TextBlock Text="{Binding TotalFiles, StringFormat=N0}" FontSize="30" FontWeight="SemiBold" Margin="0,10,0,0" /></StackPanel></Border>
                         <Border Style="{StaticResource Card}" Margin="0,0,10,0"><StackPanel><TextBlock Text="PHYSICAL LINES" Opacity="0.6" FontSize="11" FontWeight="Bold" /><TextBlock Text="{Binding TotalLines, StringFormat=N0}" FontSize="30" FontWeight="SemiBold" Margin="0,10,0,0" /></StackPanel></Border>
                         <Border Style="{StaticResource Card}" Margin="0,0,10,0"><StackPanel><TextBlock Text="CODE LINES" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontWeight="Bold" /><TextBlock Text="{Binding TotalCodeLines, StringFormat=N0}" FontSize="30" FontWeight="SemiBold" Margin="0,10,0,0" Foreground="{DynamicResource SuccessBrush}" /></StackPanel></Border>
-                        <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="TOKENS" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontWeight="Bold" /><TextBlock Text="{Binding TotalTokens, StringFormat=N0}" FontSize="30" FontWeight="SemiBold" Margin="0,10,0,0" Foreground="{DynamicResource AccentBrush}" /></StackPanel></Border>
+                        <Border Style="{StaticResource Card}" Margin="0,0,10,0"><StackPanel><TextBlock Text="TOKENS" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontWeight="Bold" /><TextBlock Text="{Binding TotalTokens, StringFormat=N0}" FontSize="30" FontWeight="SemiBold" Margin="0,10,0,0" Foreground="{DynamicResource AccentBrush}" /></StackPanel></Border>
+                        <Border Style="{StaticResource Card}" ToolTip="Tokens used by every AI agent on this computer in the last 30 days (cache included). Refresh the AI usage tab to update."><StackPanel><TextBlock Text="AI TOKENS · 30 DAYS" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" FontWeight="Bold" /><TextBlock Text="{Binding AiTokens30DaysText}" FontSize="30" FontWeight="SemiBold" Margin="0,10,0,0" /></StackPanel></Border>
                     </UniformGrid>
                     <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="1.25*" /><ColumnDefinition Width="18" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -140,6 +143,9 @@
                                 <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding IsEnabled}" Width="80" />
                                 <DataGridTextColumn Header="Name" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="210" />
                                 <DataGridTextColumn Header="Root path" Binding="{Binding RootPath, UpdateSourceTrigger=PropertyChanged}" Width="*" />
+                                <DataGridTextColumn Header="AI tokens · 30d" Binding="{Binding AiTokens30Days, StringFormat=N0}" Width="120" IsReadOnly="True" />
+                                <DataGridTextColumn Header="AI tokens" Binding="{Binding AiTokens, StringFormat=N0}" Width="130" IsReadOnly="True" />
+                                <DataGridTextColumn Header="AI cost" Binding="{Binding AiCost}" Width="90" IsReadOnly="True" />
                                 <DataGridTemplateColumn Header="" Width="90"><DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="Remove" Command="{Binding DataContext.RemoveProjectCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Padding="8,4" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
@@ -241,6 +247,48 @@
                     </DataGrid>
                     </Grid></ScrollViewer>
                 </Grid>
+                <Grid x:Name="AiUsagePage">
+                    <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding CurrentPage}" Value="AI usage" /><Condition Binding="{Binding AiUsageEnabled}" Value="True" /></MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Visible" /></MultiDataTrigger></Style.Triggers></Style></Grid.Style>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="12" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                            <Button Content="Refresh" Command="{Binding RefreshAiUsageCommand}" ToolTip="Read new data; unchanged files come from the cache" Margin="0,0,8,0" />
+                            <Button Content="Full rescan" Command="{Binding RescanAiUsageCommand}" ToolTip="Ignore the cache and re-read every file" Margin="0,0,8,0" />
+                            <Button Content="Cancel" Command="{Binding CancelAiUsageCommand}" Margin="0,0,8,0" />
+                            <Button Content="Open in browser" Command="{Binding OpenAiUsageInBrowserCommand}" Margin="0,0,8,0" />
+                            <Button Content="Export…" Click="ExportAiUsage_Click" IsEnabled="{Binding CanExportAiUsage}" ToolTip="Save the whole report as one HTML file, or the combined data as JSON" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Text="{Binding AiUsageStatus}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding AiUsageStatus}" />
+                            <TextBlock Text="{Binding AiUsageDetails}" FontSize="12" Opacity="0.65" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding AiUsageDetails}" />
+                            <ProgressBar Value="{Binding AiUsageProgress}" IsIndeterminate="{Binding AiUsageProgressIndeterminate}" Maximum="100" Height="4" Margin="0,6,0,0" Visibility="{Binding IsAiUsageRunning, Converter={StaticResource HistoryVisibility}}" />
+                        </StackPanel>
+                    </DockPanel>
+                    <Border Grid.Row="2" Background="#111110" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="1">
+                        <Grid>
+                            <wv2:WebView2 x:Name="AiUsageBrowser" DefaultBackgroundColor="#111110">
+                                <wv2:WebView2.Style>
+                                    <Style TargetType="wv2:WebView2"><Setter Property="Visibility" Value="Visible" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasAiUsageReport}" Value="False"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                            <DataTrigger Binding="{Binding AiUsageBrowserUnavailable}" Value="True"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </wv2:WebView2.Style>
+                            </wv2:WebView2>
+                            <TextBlock x:Name="AiUsageEmptyState" Text="{Binding AiUsageEmptyText}" Foreground="#C3C2B7" FontSize="14" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasAiUsageReport}" Value="False"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                                            <DataTrigger Binding="{Binding AiUsageBrowserUnavailable}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+                </Grid>
                 <Grid x:Name="SettingsPage">
                     <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding CurrentPage}" Value="Settings"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Grid.Style>
                     <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel MaxWidth="850" HorizontalAlignment="Left">
@@ -251,6 +299,20 @@
                         <Border Style="{StaticResource Card}" Margin="0,0,0,14"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="260" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Appearance" FontWeight="SemiBold" /><TextBlock Text="Follow Windows or force a light or dark Fluent theme." TextWrapping="Wrap" Opacity="0.65" Margin="0,6,25,0" /></StackPanel><ComboBox Grid.Column="1" ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme}" VerticalAlignment="Top" /></Grid></Border>
                         <Border Style="{StaticResource Card}" Margin="0,0,0,14"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="260" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Maximum file size" FontWeight="SemiBold" /><TextBlock Text="Files larger than this limit are skipped." Opacity="0.65" Margin="0,6,25,0" /></StackPanel><StackPanel Grid.Column="1" Orientation="Horizontal"><TextBox Text="{Binding MaxFileSizeMb}" Width="100" /><TextBlock Text="MB" Margin="10,6,0,0" /></StackPanel></Grid></Border>
                         <Border Style="{StaticResource Card}" Margin="0,0,0,14"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="260" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Global exclusions" FontWeight="SemiBold" /><TextBlock Text="One .gitignore-style pattern per line." Opacity="0.65" Margin="0,6,25,0" /></StackPanel><TextBox Grid.Column="1" Text="{Binding GlobalExclusions}" AcceptsReturn="True" MinHeight="170" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" /></Grid></Border>
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,14"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="260" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <StackPanel><TextBlock Text="AI usage" FontWeight="SemiBold" /><TextBlock Text="Token usage and equivalent API cost of the AI coding agents on this computer, read from their local files. Nothing is uploaded. Changes apply on the next refresh." TextWrapping="Wrap" Opacity="0.65" Margin="0,6,25,0" /></StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <CheckBox Content="Show the AI usage tab" IsChecked="{Binding AiUsageEnabled}" Margin="0,0,0,6" />
+                                <CheckBox Content="Refresh automatically when the tab is opened" IsChecked="{Binding AiUsageAutoRefresh}" Margin="0,0,0,6" />
+                                <CheckBox Content="Count each Claude Code API request once (recommended)" IsChecked="{Binding AiUsageDeduplicate}" ToolTip="Transcripts repeat a response once per content block. Turn off to count raw transcript records." Margin="0,0,0,6" />
+                                <CheckBox Content="Show times in UTC instead of local time" IsChecked="{Binding AiUsageUseUtc}" Margin="0,0,0,12" />
+                                <TextBlock Text="Agents" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                <ItemsControl ItemsSource="{Binding AiUsageAgents}" Margin="0,0,0,12">
+                                    <ItemsControl.ItemTemplate><DataTemplate><DockPanel Margin="0,0,0,4"><TextBlock DockPanel.Dock="Right" Text="{Binding Status}" Opacity="0.6" FontSize="12" VerticalAlignment="Center" /><CheckBox Content="{Binding Label}" IsChecked="{Binding IsEnabled}" /></DockPanel></DataTemplate></ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="Extra Claude Code transcript folders (one per line)" Opacity="0.75" Margin="0,0,0,6" />
+                                <TextBox Text="{Binding AiUsageExtraRoots}" AcceptsReturn="True" MinHeight="60" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" />
+                            </StackPanel></Grid></Border>
                         <TextBlock Text="{Binding SettingsPath, StringFormat=Settings file: {0}}" Opacity="0.55" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,0,0,12" />
                         <Button Content="Save settings" Style="{StaticResource PrimaryButton}" Command="{Binding SaveSettingsCommand}" HorizontalAlignment="Left" />
                     </StackPanel></ScrollViewer>
