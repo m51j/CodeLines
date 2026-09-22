@@ -2,6 +2,13 @@ using CodeLines.Core.Models;
 
 namespace CodeLines.Core.Abstractions;
 
+public interface IGitHistoryAnalyzer
+{
+    Task<GitProjectHistory> AnalyzeAsync(ProjectDefinition project, ScanOptions scanOptions,
+        GitHistoryOptions options, DateTimeOffset end, CancellationToken cancellationToken = default,
+        IProgress<GitHistoryProgress>? progress = null);
+}
+
 public interface IProjectRepository
 {
     string SettingsPath { get; }

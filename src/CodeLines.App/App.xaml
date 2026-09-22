@@ -249,6 +249,7 @@
             </Setter>
         </Style>
         <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBlock Text="{Binding}" Foreground="{DynamicResource RailTextBrush}" /></DataTemplate></Setter.Value></Setter>
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Foreground" Value="{DynamicResource RailTextBrush}" />
             <Setter Property="BorderThickness" Value="0" />

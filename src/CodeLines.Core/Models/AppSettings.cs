@@ -6,6 +6,8 @@ public sealed class AppSettings
     public ScanOptions ScanOptions { get; set; } = new();
     public string Theme { get; set; } = "System";
     public ScanSnapshot? LastSnapshot { get; set; }
+    public GitHistoryOptions GitHistory { get; set; } = new();
+    public GitHistorySnapshot? LastGitHistory { get; set; }
 
     public static List<ProjectDefinition> CreateDefaultProjects() =>
     [
@@ -13,4 +15,3 @@ public sealed class AppSettings
 
     private static ProjectDefinition New(string name, string path) => new() { Name = name, RootPath = path };
 }
-

@@ -8,6 +8,8 @@
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBackgroundBrush}"
         Foreground="{DynamicResource TextPrimaryBrush}">
+
+    <Window.Resources><BooleanToVisibilityConverter x:Key="HistoryVisibility" /></Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="230" />
@@ -33,6 +35,7 @@
                     <Button Style="{StaticResource NavButton}" Content="▦   Dashboard" Command="{Binding NavigateCommand}" CommandParameter="Dashboard" />
                     <Button Style="{StaticResource NavButton}" Content="▰   Projects" Command="{Binding NavigateCommand}" CommandParameter="Projects" />
                     <Button Style="{StaticResource NavButton}" Content="⌁   Analysis" Command="{Binding NavigateCommand}" CommandParameter="Analysis" />
+                    <Button Style="{StaticResource NavButton}" Content="⟳   Code changes" Command="{Binding NavigateCommand}" CommandParameter="Code changes" Visibility="{Binding GitHistoryEnabled, Converter={StaticResource HistoryVisibility}}" />
                     <Button Style="{StaticResource NavButton}" Content="⚙   Settings" Command="{Binding NavigateCommand}" CommandParameter="Settings" />
                 </StackPanel>
                 <Border Grid.Row="2" Margin="16" Padding="14" Background="#1E293B" CornerRadius="10">
@@ -66,7 +69,7 @@
                             <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource EnumDisplayConverter}}" /></DataTemplate></ComboBox.ItemTemplate>
                         </ComboBox>
                         <ComboBox ItemsSource="{Binding TokenizerOptions}" SelectedItem="{Binding SelectedTokenizer}" Width="135" Margin="0,0,10,0" />
-                        <Button Content="Cancel" Command="{Binding ScanAllCancelCommand}" Padding="14,9" Margin="0,0,8,0" />
+                        <Button Content="Cancel" Command="{Binding CancelActiveAnalysisCommand}" Padding="14,9" Margin="0,0,8,0" />
                         <Button Content="Scan all projects" Style="{StaticResource PrimaryButton}" Command="{Binding ScanAllCommand}" />
                     </StackPanel>
                 </Grid>
@@ -165,9 +168,83 @@
                     </Grid>
                 </Grid>
 
+                <Grid x:Name="HistoryPage">
+                    <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding CurrentPage}" Value="Code changes" /><Condition Binding="{Binding GitHistoryEnabled}" Value="True" /></MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Visible" /></MultiDataTrigger></Style.Triggers></Style></Grid.Style>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid MinHeight="620" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <WrapPanel Margin="0,0,0,12">
+                        <TextBlock Text="Last days" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <ComboBox ItemsSource="{Binding HistoryPeriods}" SelectedItem="{Binding HistoryPeriod}" Width="100" Margin="0,0,8,0" />
+                        <TextBox Text="{Binding CustomHistoryDays, UpdateSourceTrigger=PropertyChanged}" Width="85" Margin="0,0,12,0" ToolTip="Custom period: 1–36500 days"><TextBox.Style><Style TargetType="TextBox"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding HistoryPeriod}" Value="Custom"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></TextBox.Style></TextBox>
+                        <ComboBox ItemsSource="{Binding HistoryModes}" SelectedItem="{Binding HistoryMode}" Width="155" Margin="0,0,12,0" />
+                        <Button Content="Refresh" Command="{Binding RefreshHistoryCommand}" Margin="0,0,8,0" />
+                        <Button Content="Cancel" Command="{Binding CancelHistoryCommand}" Margin="0,0,8,0" />
+                        <Button Content="Export CSV / JSON" Click="ExportHistory_Click" IsEnabled="{Binding CanExportHistory}" />
+                    </WrapPanel>
+                    <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                        <TextBlock Text="{Binding HistorySummary}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding HistoryTimingText}" Opacity="0.75" Margin="0,3,0,0" />
+                        <TextBlock Text="Activity = sum of commits; NetChange = start-to-end difference. Local current branch, first-parent history only." TextWrapping="Wrap" Opacity="0.65" Margin="0,6,0,0" />
+                        <TextBlock Text="Modified (est.) overlaps added/deleted totals; do not add it to them. Binary files have no line counts." TextWrapping="Wrap" Opacity="0.65" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Margin="0,0,0,10">
+                        <DockPanel Margin="0,0,0,6"><TextBlock Text="{Binding HistoryTotalsText}" FontWeight="SemiBold" /><TextBlock Text="{Binding HistoryTotals.BinaryFiles, StringFormat=Binary files: {0:N0}}" HorizontalAlignment="Right" /></DockPanel>
+                        <UniformGrid Columns="6">
+                            <Border Style="{StaticResource Card}" Padding="12,8" Margin="0,0,6,0"><StackPanel><TextBlock Text="ADDED" Opacity="0.65" FontSize="10" /><TextBlock Text="{Binding HistoryTotals.Added, StringFormat=N0}" FontSize="23" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}" /></StackPanel></Border>
+                            <Border Style="{StaticResource Card}" Padding="12,8" Margin="0,0,6,0"><StackPanel><TextBlock Text="DELETED" Opacity="0.65" FontSize="10" /><TextBlock Text="{Binding HistoryTotals.Deleted, StringFormat=N0}" FontSize="23" FontWeight="SemiBold" /></StackPanel></Border>
+                            <Border Style="{StaticResource Card}" Padding="12,8" Margin="0,0,6,0"><StackPanel><TextBlock Text="MODIFIED (EST.)" Opacity="0.65" FontSize="10" /><TextBlock Text="{Binding HistoryTotals.ModifiedEstimate, StringFormat=N0}" FontSize="23" FontWeight="SemiBold" /></StackPanel></Border>
+                            <Border Style="{StaticResource Card}" Padding="12,8" Margin="0,0,6,0"><StackPanel><TextBlock Text="NET LINES" Opacity="0.65" FontSize="10" /><TextBlock Text="{Binding HistoryTotals.Net, StringFormat=N0}" FontSize="23" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /></StackPanel></Border>
+                            <Border Style="{StaticResource Card}" Padding="12,8" Margin="0,0,6,0"><StackPanel><TextBlock Text="CHANGED FILES" Opacity="0.65" FontSize="10" /><TextBlock Text="{Binding HistoryTotals.ChangedFiles, StringFormat=N0}" FontSize="23" FontWeight="SemiBold" /></StackPanel></Border>
+                            <Border Style="{StaticResource Card}" Padding="12,8"><StackPanel><TextBlock Text="COMMITS (ACTIVITY)" Opacity="0.65" FontSize="10" /><TextBlock Text="{Binding HistoryTotals.Commits, StringFormat=N0, TargetNullValue=—}" FontSize="23" FontWeight="SemiBold" /></StackPanel></Border>
+                        </UniformGrid>
+                    </StackPanel>
+                    <Border Grid.Row="3" Style="{StaticResource Card}" Padding="12,8" Margin="0,0,0,10" Visibility="{Binding IsHistoryRunning, Converter={StaticResource HistoryVisibility}}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding HistoryProgressText}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding HistoryProgressText}" />
+                            <TextBlock Text="{Binding HistoryWorkText}" FontSize="12" TextWrapping="Wrap" Margin="0,3,0,3" />
+                            <TextBlock Text="{Binding HistoryCurrentPath}" FontSize="11" Opacity="0.65" TextTrimming="CharacterEllipsis" ToolTip="{Binding HistoryCurrentPath}" />
+                            <Grid Margin="0,6,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding HistoryProjectProgress, StringFormat=Current project: {0:F0}%}" FontSize="11" />
+                                <ProgressBar Grid.Column="1" Value="{Binding HistoryProjectProgress}" IsIndeterminate="{Binding HistoryProgressIndeterminate}" Maximum="100" Height="6" VerticalAlignment="Center" />
+                            </Grid>
+                            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding ProgressValue, StringFormat=Overall (by project): {0:F0}%}" FontSize="11" ToolTip="Projects have equal weight. This percentage does not estimate remaining time." />
+                                <ProgressBar Grid.Column="1" Value="{Binding ProgressValue}" Maximum="100" Height="6" VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <DataGrid x:Name="HistoryProjectGrid" Grid.Row="4" ItemsSource="{Binding HistoryResults}" SelectedItem="{Binding SelectedHistory}" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Project" Binding="{Binding ProjectName}" Width="150" />
+                            <DataGridTextColumn Header="Branch" Binding="{Binding Branch}" Width="110" />
+                            <DataGridTextColumn Header="Added" Binding="{Binding Added, StringFormat=N0}" />
+                            <DataGridTextColumn Header="Deleted" Binding="{Binding Deleted, StringFormat=N0}" />
+                            <DataGridTextColumn Header="Modified (est.)" Binding="{Binding ModifiedEstimate, StringFormat=N0}" />
+                            <DataGridTextColumn Header="Net" Binding="{Binding Net, StringFormat=N0}" />
+                            <DataGridTextColumn Header="Files" Binding="{Binding ChangedFiles}" />
+                            <DataGridTextColumn Header="Binary" Binding="{Binding BinaryFiles}" />
+                            <DataGridTextColumn Header="Commits" Binding="{Binding Commits}" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="250" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Grid.Row="5" Margin="0,12,0,12"><TextBlock Text="Changed files" FontSize="17" FontWeight="SemiBold" /><TextBlock Text="{Binding SelectedHistory.Status}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}" /><TextBlock Text="{Binding SelectedHistory.Head, StringFormat=HEAD: {0}}" Opacity="0.65" /></StackPanel>
+                    <DataGrid x:Name="HistoryFilesGrid" Grid.Row="6" ItemsSource="{Binding SelectedHistory.Files}" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Path" Binding="{Binding Path}" Width="*" MinWidth="300" />
+                            <DataGridTextColumn Header="Added" Binding="{Binding Added, StringFormat=N0}" Width="90" />
+                            <DataGridTextColumn Header="Deleted" Binding="{Binding Deleted, StringFormat=N0}" Width="90" />
+                            <DataGridTextColumn Header="Modified (est.)" Binding="{Binding ModifiedEstimate, StringFormat=N0}" Width="130" />
+                            <DataGridTextColumn Header="Net" Binding="{Binding Net, StringFormat=N0}" Width="90" />
+                            <DataGridCheckBoxColumn Header="Binary" Binding="{Binding Binary}" Width="70" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    </Grid></ScrollViewer>
+                </Grid>
                 <Grid x:Name="SettingsPage">
                     <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding CurrentPage}" Value="Settings"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Grid.Style>
                     <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel MaxWidth="850" HorizontalAlignment="Left">
+                        <CheckBox Content="Enable Git history statistics" IsChecked="{Binding GitHistoryEnabled}" Margin="0,0,0,16" />
                         <TextBlock Text="Analysis settings" FontSize="20" FontWeight="SemiBold" /><TextBlock Text="These defaults are saved locally and applied to every scan." Opacity="0.65" Margin="0,4,0,20" />
                         <Border Style="{StaticResource Card}" Margin="0,0,0,14"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="260" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Counting scope" FontWeight="SemiBold" /><TextBlock Text="Choose source only, source plus configuration, or every verified text file." TextWrapping="Wrap" Opacity="0.65" Margin="0,6,25,0" /></StackPanel><ComboBox Grid.Column="1" ItemsSource="{Binding ScopeOptions}" SelectedItem="{Binding SelectedScope}" VerticalAlignment="Top"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource EnumDisplayConverter}}" /></DataTemplate></ComboBox.ItemTemplate></ComboBox></Grid></Border>
                         <Border Style="{StaticResource Card}" Margin="0,0,0,14"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="260" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Tokenizer" FontWeight="SemiBold" /><TextBlock Text="Token counts are calculated entirely offline." TextWrapping="Wrap" Opacity="0.65" Margin="0,6,25,0" /></StackPanel><ComboBox Grid.Column="1" ItemsSource="{Binding TokenizerOptions}" SelectedItem="{Binding SelectedTokenizer}" VerticalAlignment="Top" /></Grid></Border>
@@ -181,7 +258,7 @@
             </Grid>
 
             <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="28,0">
-                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="260" /></Grid.ColumnDefinitions><TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" FontSize="12" Opacity="0.75" TextTrimming="CharacterEllipsis" /><ProgressBar Grid.Column="1" Value="{Binding ProgressValue}" Maximum="100" Height="5" VerticalAlignment="Center" /></Grid>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="260" /></Grid.ColumnDefinitions><TextBlock Text="{Binding StatusText}" ToolTip="{Binding StatusText}" VerticalAlignment="Center" FontSize="12" Opacity="0.75" TextTrimming="CharacterEllipsis" /><ProgressBar Grid.Column="1" Value="{Binding ProgressValue}" IsIndeterminate="{Binding IsProgressIndeterminate}" ToolTip="{Binding StatusText}" Maximum="100" Height="5" VerticalAlignment="Center" /></Grid>
             </Border>
         </Grid>
     </Grid>

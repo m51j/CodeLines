@@ -4,6 +4,7 @@
     <Project Path="src/CodeLines.Core/CodeLines.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/CodeLines.App.Tests/CodeLines.App.Tests.csproj" />
     <Project Path="tests/CodeLines.Tests/CodeLines.Tests.csproj" />
   </Folder>
 </Solution>

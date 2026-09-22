@@ -41,5 +41,13 @@ public partial class MainWindow : Window
         MessageBox.Show(this, "The analysis was exported successfully.", "CodeLines", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    private async void ExportHistory_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog { Title = "Export Git history", Filter = "CSV file (*.csv)|*.csv|JSON file (*.json)|*.json", DefaultExt = ".csv", FileName = $"codelines-history-{DateTime.Now:yyyyMMdd-HHmm}" };
+        if (dialog.ShowDialog(this) != true) return;
+        try { await _viewModel.ExportHistoryAsync(dialog.FileName); }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Git history", MessageBoxButton.OK, MessageBoxImage.Information); }
+    }
+
     private static void ApplyTheme(string theme) => ThemeManager.Apply(theme);
 }

@@ -16,12 +16,15 @@ public sealed partial class MainViewModel : ObservableObject
     private AppSettings _settings = new();
 
     public MainViewModel(IProjectRepository repository, ISourceScanner scanner, IExportService exportService,
-        Action<string> applyTheme)
+        Action<string> applyTheme, IGitHistoryAnalyzer? gitAnalyzer = null)
     {
         _repository = repository;
         _scanner = scanner;
         _exportService = exportService;
         _applyTheme = applyTheme;
+        HistoryResults.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HistoryTotals));
+        _gitAnalyzer = gitAnalyzer ?? new CodeLines.Core.Services.GitHistoryAnalyzer(
+            new CodeLines.Core.Services.FileClassifier(new CodeLines.Core.Services.LanguageRegistry()));
     }
 
     public ObservableCollection<ProjectItemViewModel> Projects { get; } = [];
@@ -65,6 +68,7 @@ public sealed partial class MainViewModel : ObservableObject
         SelectedTheme = _settings.Theme;
         _applyTheme(SelectedTheme);
         if (_settings.LastSnapshot is not null) ApplySnapshot(_settings.LastSnapshot);
+        LoadHistorySettings();
         OnPropertyChanged(nameof(SettingsPath));
         OnPropertyChanged(nameof(LastScanText));
     }
@@ -75,7 +79,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(page)) CurrentPage = page;
     }
 
-    [RelayCommand(IncludeCancelCommand = true)]
+    [RelayCommand(IncludeCancelCommand = true, CanExecute = nameof(CanStartAnalysis))]
     private async Task ScanAllAsync(CancellationToken cancellationToken)
     {
         if (IsBusy) return;
@@ -128,7 +132,7 @@ public sealed partial class MainViewModel : ObservableObject
         StatusText = "Settings saved";
     }
 
-    [RelayCommand(IncludeCancelCommand = true)]
+    [RelayCommand(IncludeCancelCommand = true, CanExecute = nameof(CanStartAnalysis))]
     private async Task ScanSelectedProjectAsync(CancellationToken cancellationToken)
     {
         if (IsBusy || SelectedProject is null) return;
@@ -217,6 +221,7 @@ public sealed partial class MainViewModel : ObservableObject
         _settings.ScanOptions.GlobalExcludePatterns = GlobalExclusions
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         _settings.Theme = SelectedTheme;
+        SaveHistorySettings();
     }
 
     private void ApplySnapshot(ScanSnapshot snapshot)

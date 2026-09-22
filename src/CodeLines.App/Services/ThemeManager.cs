@@ -22,7 +22,7 @@ public static class ThemeManager
         var current = dictionaries.FirstOrDefault(IsThemeDictionary);
         var replacement = new ResourceDictionary
         {
-            Source = new Uri($"Themes/{palette}Theme.xaml", UriKind.Relative)
+            Source = new Uri($"pack://application:,,,/CodeLines.App;component/Themes/{palette}Theme.xaml", UriKind.Absolute)
         };
 
         if (current is not null) dictionaries.Remove(current);

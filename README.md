@@ -91,3 +91,25 @@ The classifier and scanner consume the registry through `ILanguageRegistry`, so 
 - `CodeLines.Tests`: scope, language, line, ignore, tokenizer, binary-file, and scanner tests.
 
 Scanning is asynchronous and uses bounded parallelism. It supports cancellation, skips reparse-point directories to prevent loops, detects binary files, enforces a configurable maximum file size, and records unreadable paths as warnings without stopping the remaining scan.
+
+## Git history (optional)
+
+In **Settings**, turn on **Enable Git history statistics** and save settings. Open **Code changes**, choose **7**, **30**, **365**, or **Custom** days (1–36500), select a mode, and click **Refresh**. Git must be installed and available on PATH. Disabling the feature cancels analysis and hides its page.
+
+- **Activity** sums committed changes on the current branch's first-parent history. Merge commits are compared with their first parent, so merged changes are counted once. The commit count includes all commits in this history window, even when their files are excluded.
+- **NetChange** compares the captured HEAD with the first commit before the period on that same history path. If the repository began within the period, the baseline is an empty tree.
+- Periods use commit timestamps and a captured analysis end time; the interface displays local dates. Uncommitted changes are excluded. No fetch, checkout, GitHub login, or network request occurs.
+- Added and deleted are Git line counts. **Modified (est.)** pairs additions and deletions within adjacent replacement blocks; it overlaps those counts and must not be added to them. Net is added minus deleted. Whitespace and comment changes count as physical line changes.
+- The current counting scope, global/project exclusions, and current on-disk `.gitignore` rules filter historical paths, including deleted files. A project inside a repository only counts its own folder. Renames within scope preserve Git's rename statistics; moves across the scope boundary count as a file entering or leaving scope. Binary changes appear as files with zero line counts.
+- Saved results show their timestamp, branch, and HEAD. Refresh to check changes made outside CodeLines; options and project edits clear displayed results. CSV/JSON exports on this page contain history results separately from source-analysis exports.
+- Missing Git, unreadable repositories, and shallow clones have explicit project statuses. Shallow boundary commits are excluded from activity counts; a net comparison requiring unavailable history is not reported as a complete result.
+
+The tests include temporary Git repositories, view-model cancellation and settings checks, and WPF rendering in both themes. Render previews are written under `artifacts/history-ui`.
+
+### History progress and totals
+
+Refresh now reports the current project, discovery/comparison stage, commit, file, completed/remaining comparisons and files, and projects still waiting. Progress events are coalesced to four UI updates per second; elapsed time continues updating while a Git command is running. The project bar is indeterminate while the amount of work is unknown. Overall percentage weights projects equally, not by runtime. An approximate **current-project** ETA appears after at least two completed comparisons; it can vary with commit size.
+
+Totals accumulate as projects finish and include added, deleted, estimated modified, net lines, files, binary files, and activity commits. They are explicitly partial during work or after cancellation, and show how many repositories were incomplete/unavailable. Totals sum each configured project separately; overlapping project folders are not deduplicated. Refresh and source-scan actions are disabled during analysis. Cancel works from the history page or the shared toolbar, and export stays disabled until the run finishes. With no enabled projects, the page explains how to start instead of reporting success.
+
+JSON history exports include a `totals` object. CSV adds a `RecordType` column (`File`, `ProjectStatus`, or `Totals`) and one aggregate row; filter to `File` before summing file rows to avoid counting the aggregate again.
