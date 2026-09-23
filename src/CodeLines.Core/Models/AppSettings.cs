@@ -9,6 +9,7 @@ public sealed class AppSettings
     public GitHistoryOptions GitHistory { get; set; } = new();
     public GitHistorySnapshot? LastGitHistory { get; set; }
     public AiUsageSettings AiUsage { get; set; } = new();
+    public DailyLogSettings DailyLog { get; set; } = new();
 
     public static List<ProjectDefinition> CreateDefaultProjects() =>
     [

@@ -64,6 +64,8 @@ public sealed partial class MainViewModel
     {
         if (value == AiUsagePageName && AiUsageEnabled && AiUsageAutoRefresh && !_aiUsageRefreshedThisSession && !IsAiUsageRunning)
             RefreshAiUsageCommand.Execute(null);
+        // Project names and enabled flags may have been edited since the filter was built.
+        if (value == DailyLogPageName) RefreshDailyLogProjects();
     }
 
     [RelayCommand(CanExecute = nameof(CanRefreshAiUsage))]
@@ -95,7 +97,8 @@ public sealed partial class MainViewModel
             : AiUsageReportBuilder.ExportSingleFileAsync(result, path);
     }
 
-    private async Task RunAiUsageAsync(bool rescan)
+    /// <param name="announce">Report the result in the status bar; off when it runs after a scan, to keep the scan's result there.</param>
+    private async Task RunAiUsageAsync(bool rescan, bool announce = true)
     {
         if (IsAiUsageRunning) return;
         _aiUsageRefreshedThisSession = true;
@@ -120,7 +123,8 @@ public sealed partial class MainViewModel
             AiUsageStatus = result.HasData
                 ? $"Updated {result.GeneratedAt.LocalDateTime:g} • {Duration(clock.Elapsed)}"
                 : "No AI agent usage was found on this computer.";
-            StatusText = "AI usage report updated";
+            if (announce) StatusText = "AI usage report updated";
+            if (result.Combined is { } combined) await RecordDailyAiAsync(combined);
         }
         catch (OperationCanceledException) { AiUsageStatus = "AI usage refresh cancelled"; }
         catch (Exception ex) { AiUsageStatus = $"AI usage refresh failed: {ex.Message}"; }

@@ -18,14 +18,21 @@ public static class AiProjectUsageMatcher
     public static Dictionary<TKey, AiProjectUsage> Match<TKey>(AgentUsagePayload payload, IReadOnlyDictionary<TKey, string> roots,
         DateTimeOffset? since = null) where TKey : notnull
     {
+        var from = since?.ToUnixTimeMilliseconds() ?? long.MinValue;
+        return Match(payload.Sessions.Where(s => s.Start >= from), roots);
+    }
+
+    /// <param name="roots">Project root folders, keyed by project id.</param>
+    public static Dictionary<TKey, AiProjectUsage> Match<TKey>(IEnumerable<AgentSessionRow> sessions, IReadOnlyDictionary<TKey, string> roots)
+        where TKey : notnull
+    {
         // Longest root first, so a session in a nested project counts for the inner project only.
         var normalized = roots.Select(p => (p.Key, Root: Normalize(p.Value))).Where(p => p.Root.Length > 0)
             .OrderByDescending(p => p.Root.Length).ToList();
         var totals = roots.Keys.ToDictionary(k => k, _ => (Sessions: 0, V: new double[AgentVector.Length]));
-        var from = since?.ToUnixTimeMilliseconds() ?? long.MinValue;
-        foreach (var session in payload.Sessions)
+        foreach (var session in sessions)
         {
-            if (session.Start < from || session.Cwd.Length == 0) continue;
+            if (session.Cwd.Length == 0) continue;
             var cwd = Normalize(session.Cwd);
             foreach (var (key, root) in normalized)
             {

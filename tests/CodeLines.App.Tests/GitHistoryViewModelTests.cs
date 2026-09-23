@@ -206,7 +206,7 @@ public sealed class GitHistoryViewModelTests
 
     private static MainViewModel Create(MemoryRepository repository, FakeAnalyzer analyzer) => new(repository,
         new SourceScanner(new FileClassifier(new LanguageRegistry()), new GitIgnoreRuleProvider(), new LineMetricsAnalyzer(), new TokenCounter()),
-        new ExportService(), _ => { }, analyzer);
+        new ExportService(), _ => { }, analyzer, dailyLog: new MemoryDailyLog());
 
     private sealed class MemoryRepository : IProjectRepository
     {

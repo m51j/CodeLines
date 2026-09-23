@@ -170,7 +170,7 @@ public sealed class AiUsageViewModelTests
 
     private static MainViewModel Create(MemoryRepository repository, FakeBuilder builder) => new(repository,
         new SourceScanner(new FileClassifier(new LanguageRegistry()), new GitIgnoreRuleProvider(), new LineMetricsAnalyzer(), new TokenCounter()),
-        new ExportService(), _ => { }, aiUsage: builder);
+        new ExportService(), _ => { }, aiUsage: builder, dailyLog: new MemoryDailyLog());
 
     private static async Task WaitUntil(Func<bool> condition)
     {

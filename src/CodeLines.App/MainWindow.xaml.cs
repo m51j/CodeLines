@@ -136,5 +136,13 @@ public partial class MainWindow : Window
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Git history", MessageBoxButton.OK, MessageBoxImage.Information); }
     }
 
+    private async void ExportDailyLog_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog { Title = "Export daily log", Filter = "CSV file (*.csv)|*.csv", DefaultExt = ".csv", FileName = $"codelines-daily-{DateTime.Now:yyyyMMdd}" };
+        if (dialog.ShowDialog(this) != true) return;
+        try { await _viewModel.ExportDailyLogAsync(dialog.FileName); }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Daily log", MessageBoxButton.OK, MessageBoxImage.Warning); }
+    }
+
     private static void ApplyTheme(string theme) => ThemeManager.Apply(theme);
 }

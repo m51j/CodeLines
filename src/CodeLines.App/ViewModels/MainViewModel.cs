@@ -17,7 +17,8 @@ public sealed partial class MainViewModel : ObservableObject
     private AppSettings _settings = new();
 
     public MainViewModel(IProjectRepository repository, ISourceScanner scanner, IExportService exportService,
-        Action<string> applyTheme, IGitHistoryAnalyzer? gitAnalyzer = null, IAiUsageReportBuilder? aiUsage = null)
+        Action<string> applyTheme, IGitHistoryAnalyzer? gitAnalyzer = null, IAiUsageReportBuilder? aiUsage = null,
+        IDailyLogRepository? dailyLog = null)
     {
         _repository = repository;
         _scanner = scanner;
@@ -27,6 +28,7 @@ public sealed partial class MainViewModel : ObservableObject
         _gitAnalyzer = gitAnalyzer ?? new CodeLines.Core.Services.GitHistoryAnalyzer(
             new CodeLines.Core.Services.FileClassifier(new CodeLines.Core.Services.LanguageRegistry()));
         _aiUsage = aiUsage ?? new AiUsageReportBuilder();
+        _dailyLogRepository = dailyLog ?? new CodeLines.Core.Services.JsonDailyLogRepository();
     }
 
     public ObservableCollection<ProjectItemViewModel> Projects { get; } = [];
@@ -72,6 +74,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (_settings.LastSnapshot is not null) ApplySnapshot(_settings.LastSnapshot);
         LoadHistorySettings();
         LoadAiUsageSettings();
+        await LoadDailyLogAsync();
         OnPropertyChanged(nameof(SettingsPath));
         OnPropertyChanged(nameof(LastScanText));
     }
@@ -118,8 +121,10 @@ public sealed partial class MainViewModel : ObservableObject
             _settings.LastSnapshot = snapshot;
             ApplySnapshot(snapshot);
             await _repository.SaveAsync(_settings, cancellationToken);
+            var logged = await RecordDailyLinesAsync(snapshot.Projects);
             ProgressValue = 100;
-            StatusText = $"Completed • {snapshot.FileCount:N0} files analyzed";
+            StatusText = $"Completed • {snapshot.FileCount:N0} files analyzed{(logged ? "" : " • daily log not saved")}";
+            RefreshAiUsageAfterScan();
         }
         catch (OperationCanceledException) { StatusText = "Scan cancelled"; }
         catch (Exception ex) { StatusText = $"Scan failed: {ex.Message}"; }
@@ -168,8 +173,10 @@ public sealed partial class MainViewModel : ObservableObject
             ApplySnapshot(snapshot);
             SelectedResult = Results.FirstOrDefault(x => x.ProjectId == result.ProjectId);
             await _repository.SaveAsync(_settings, cancellationToken);
+            var logged = await RecordDailyLinesAsync([result]);
             ProgressValue = 100;
-            StatusText = $"Completed {result.ProjectName} • {result.FileCount:N0} files";
+            StatusText = $"Completed {result.ProjectName} • {result.FileCount:N0} files{(logged ? "" : " • daily log not saved")}";
+            RefreshAiUsageAfterScan();
         }
         catch (OperationCanceledException) { StatusText = "Scan cancelled"; }
         catch (Exception ex) { StatusText = $"Scan failed: {ex.Message}"; }
@@ -226,6 +233,7 @@ public sealed partial class MainViewModel : ObservableObject
         _settings.Theme = SelectedTheme;
         SaveHistorySettings();
         SaveAiUsageSettings();
+        SaveDailyLogSettings();
     }
 
     private void ApplySnapshot(ScanSnapshot snapshot)

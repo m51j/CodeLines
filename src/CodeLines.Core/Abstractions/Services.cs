@@ -16,6 +16,13 @@ public interface IProjectRepository
     Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default);
 }
 
+public interface IDailyLogRepository
+{
+    string LogPath { get; }
+    Task<DailyLogFile> LoadAsync(CancellationToken cancellationToken = default);
+    Task SaveAsync(DailyLogFile log, CancellationToken cancellationToken = default);
+}
+
 public interface ILanguageRegistry
 {
     IReadOnlyList<LanguageDefinition> Languages { get; }

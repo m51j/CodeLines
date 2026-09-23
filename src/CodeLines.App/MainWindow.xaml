@@ -37,6 +37,7 @@
                     <Button Style="{StaticResource NavButton}" Content="▰   Projects" Command="{Binding NavigateCommand}" CommandParameter="Projects" />
                     <Button Style="{StaticResource NavButton}" Content="⌁   Analysis" Command="{Binding NavigateCommand}" CommandParameter="Analysis" />
                     <Button Style="{StaticResource NavButton}" Content="⟳   Code changes" Command="{Binding NavigateCommand}" CommandParameter="Code changes" Visibility="{Binding GitHistoryEnabled, Converter={StaticResource HistoryVisibility}}" />
+                    <Button Style="{StaticResource NavButton}" Content="▤   Daily log" Command="{Binding NavigateCommand}" CommandParameter="Daily log" />
                     <Button Style="{StaticResource NavButton}" Content="✦   AI usage" Command="{Binding NavigateCommand}" CommandParameter="AI usage" Visibility="{Binding AiUsageEnabled, Converter={StaticResource HistoryVisibility}}" />
                     <Button Style="{StaticResource NavButton}" Content="⚙   Settings" Command="{Binding NavigateCommand}" CommandParameter="Settings" />
                 </StackPanel>
@@ -247,6 +248,74 @@
                     </DataGrid>
                     </Grid></ScrollViewer>
                 </Grid>
+                <Grid x:Name="DailyLogPage">
+                    <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding CurrentPage}" Value="Daily log"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Grid.Style>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="12" /><RowDefinition Height="*" /><RowDefinition Height="14" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                            <TextBlock Text="Project" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <ComboBox ItemsSource="{Binding DailyLogProjectOptions}" SelectedItem="{Binding SelectedDailyLogProject}" DisplayMemberPath="Label" Width="230" Margin="0,0,8,0" />
+                            <Button Content="Export CSV" Click="ExportDailyLog_Click" IsEnabled="{Binding CanExportDailyLog}" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Text="Day by day" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding DailyLogSummary}" Opacity="0.65" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            <TextBlock Text="{Binding DailyLogError}" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </DockPanel>
+                    <Border Grid.Row="2" Style="{StaticResource Card}" Padding="6">
+                        <DataGrid x:Name="DailyLogGrid" ItemsSource="{Binding DailyLogRows}" AutoGenerateColumns="False" IsReadOnly="True" BorderThickness="0" HeadersVisibility="Column">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Date" Binding="{Binding Date}" Width="100" />
+                                <DataGridTextColumn Header="Projects" Binding="{Binding Projects}" Width="70" />
+                                <DataGridTextColumn Header="Files" Binding="{Binding Files, StringFormat=N0, TargetNullValue=—}" Width="70" />
+                                <DataGridTextColumn Header="Lines" Binding="{Binding PhysicalLines, StringFormat=N0, TargetNullValue=—}" Width="95" />
+                                <DataGridTextColumn Header="Δ Lines" Binding="{Binding DeltaLinesText}" Width="80" />
+                                <DataGridTextColumn Header="Code" Binding="{Binding CodeLines, StringFormat=N0, TargetNullValue=—}" Width="95" />
+                                <DataGridTextColumn Header="Δ Code" Binding="{Binding DeltaCodeText}" Width="80" />
+                                <DataGridTextColumn Header="Tokens" Binding="{Binding Tokens, StringFormat=N0, TargetNullValue=—}" Width="100" />
+                                <DataGridTextColumn Header="Δ Tokens" Binding="{Binding DeltaTokensText}" Width="90" />
+                                <DataGridTextColumn Header="AI tokens" Binding="{Binding AiTokens, StringFormat=N0, TargetNullValue=—}" Width="105" />
+                                <DataGridTextColumn Header="AI cost" Binding="{Binding AiCostText}" Width="75" />
+                                <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*" MinWidth="160" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                    <Border Grid.Row="4" Style="{StaticResource Card}">
+                        <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                            <DockPanel Margin="0,0,0,10">
+                                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Top">
+                                    <TextBlock Text="Compare" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,16,0" />
+                                    <ComboBox ItemsSource="{Binding DailyLogDates}" SelectedItem="{Binding CompareDateA}" Width="130" ToolTip="Day A" />
+                                    <TextBlock Text="→" VerticalAlignment="Center" Margin="10,0" />
+                                    <ComboBox ItemsSource="{Binding DailyLogDates}" SelectedItem="{Binding CompareDateB}" Width="130" Margin="0,0,16,0" ToolTip="Day B" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding DailyCompareWarning}" Foreground="{DynamicResource WarningBrush}" TextWrapping="Wrap" VerticalAlignment="Center" FontSize="12" />
+                            </DockPanel>
+                            <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="0.85*" /><ColumnDefinition Width="14" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <DataGrid x:Name="DailyCompareGrid" ItemsSource="{Binding DailyCompareRows}" AutoGenerateColumns="False" IsReadOnly="True" BorderThickness="0" HeadersVisibility="Column">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Metric" Binding="{Binding Metric}" Width="*" MinWidth="140" />
+                                        <DataGridTextColumn Header="Day A" Binding="{Binding AText}" Width="85" />
+                                        <DataGridTextColumn Header="Day B" Binding="{Binding BText}" Width="85" />
+                                        <DataGridTextColumn Header="Δ" Binding="{Binding DeltaText}" Width="80" />
+                                        <DataGridTextColumn Header="Δ %" Binding="{Binding DeltaPercentText}" Width="65" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <DataGrid x:Name="DailyCompareLanguageGrid" Grid.Column="2" ItemsSource="{Binding DailyCompareLanguageRows}" AutoGenerateColumns="False" IsReadOnly="True" BorderThickness="0" HeadersVisibility="Column">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Language" Binding="{Binding Language}" Width="*" MinWidth="110" />
+                                        <DataGridTextColumn Header="Category" Binding="{Binding Category, Converter={StaticResource EnumDisplayConverter}}" Width="120" />
+                                        <DataGridTextColumn Header="Lines A" Binding="{Binding LinesA, StringFormat=N0}" Width="75" />
+                                        <DataGridTextColumn Header="Lines B" Binding="{Binding LinesB, StringFormat=N0}" Width="75" />
+                                        <DataGridTextColumn Header="Δ Lines" Binding="{Binding DeltaLinesText}" Width="75" />
+                                        <DataGridTextColumn Header="Δ Code" Binding="{Binding DeltaCodeText}" Width="70" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
                 <Grid x:Name="AiUsagePage">
                     <Grid.Style><Style TargetType="Grid"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><MultiDataTrigger><MultiDataTrigger.Conditions><Condition Binding="{Binding CurrentPage}" Value="AI usage" /><Condition Binding="{Binding AiUsageEnabled}" Value="True" /></MultiDataTrigger.Conditions><Setter Property="Visibility" Value="Visible" /></MultiDataTrigger></Style.Triggers></Style></Grid.Style>
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="12" /><RowDefinition Height="*" /></Grid.RowDefinitions>
@@ -304,6 +373,7 @@
                             <StackPanel Grid.Column="1">
                                 <CheckBox Content="Show the AI usage tab" IsChecked="{Binding AiUsageEnabled}" Margin="0,0,0,6" />
                                 <CheckBox Content="Refresh automatically when the tab is opened" IsChecked="{Binding AiUsageAutoRefresh}" Margin="0,0,0,6" />
+                                <CheckBox Content="Refresh after every scan, so the daily log holds both" IsChecked="{Binding RefreshAiAfterScan}" Margin="0,0,0,6" />
                                 <CheckBox Content="Count each Claude Code API request once (recommended)" IsChecked="{Binding AiUsageDeduplicate}" ToolTip="Transcripts repeat a response once per content block. Turn off to count raw transcript records." Margin="0,0,0,6" />
                                 <CheckBox Content="Show times in UTC instead of local time" IsChecked="{Binding AiUsageUseUtc}" Margin="0,0,0,12" />
                                 <TextBlock Text="Agents" FontWeight="SemiBold" Margin="0,0,0,6" />
@@ -313,7 +383,8 @@
                                 <TextBlock Text="Extra Claude Code transcript folders (one per line)" Opacity="0.75" Margin="0,0,0,6" />
                                 <TextBox Text="{Binding AiUsageExtraRoots}" AcceptsReturn="True" MinHeight="60" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" />
                             </StackPanel></Grid></Border>
-                        <TextBlock Text="{Binding SettingsPath, StringFormat=Settings file: {0}}" Opacity="0.55" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,0,0,12" />
+                        <TextBlock Text="{Binding SettingsPath, StringFormat=Settings file: {0}}" Opacity="0.55" FontSize="11" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding DailyLogPath, StringFormat=Daily log file: {0}}" Opacity="0.55" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,12" />
                         <Button Content="Save settings" Style="{StaticResource PrimaryButton}" Command="{Binding SaveSettingsCommand}" HorizontalAlignment="Left" />
                     </StackPanel></ScrollViewer>
                 </Grid>
