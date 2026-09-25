@@ -22,7 +22,9 @@ public sealed class LiveProjectsSmokeTests
             MaxDegreeOfParallelism = Math.Max(2, Environment.ProcessorCount)
         };
 
-        foreach (var project in AppSettings.CreateDefaultProjects())
+        // The projects configured in the app on this machine.
+        var settings = await new JsonProjectRepository().LoadAsync();
+        foreach (var project in settings.Projects)
         {
             Assert.True(Directory.Exists(project.RootPath), $"Missing live project: {project.RootPath}");
             var result = await scanner.ScanProjectAsync(project, options);

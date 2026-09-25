@@ -42,6 +42,45 @@ public sealed class PersistenceAndExportTests : IDisposable
         Assert.Contains("\"tokenizerEncoding\": \"cl100k_base\"", await File.ReadAllTextAsync(json));
     }
 
+    [Fact]
+    public void New_settings_start_with_no_projects()
+    {
+        Assert.Empty(new AppSettings().Projects);
+    }
+
+    [Fact]
+    public async Task Project_list_round_trips_and_imports_from_a_settings_file()
+    {
+        Directory.CreateDirectory(_root);
+        var project = new ProjectDefinition { Name = "Example", RootPath = @"C:\Example", IsEnabled = false, ExcludePatterns = ["*.g.cs"] };
+        var exported = Path.Combine(_root, "projects.json");
+
+        await ProjectListFile.ExportAsync([project], exported);
+        var loaded = Assert.Single(await ProjectListFile.ImportAsync(exported));
+        Assert.Contains("\"format\": \"codelines-projects\"", await File.ReadAllTextAsync(exported));
+        Assert.Equal((project.Id, "Example", @"C:\Example", false), (loaded.Id, loaded.Name, loaded.RootPath, loaded.IsEnabled));
+        Assert.Equal(["*.g.cs"], loaded.ExcludePatterns);
+
+        var repository = new JsonProjectRepository(Path.Combine(_root, "settings.json"));
+        await repository.SaveAsync(CreateSettings());
+        Assert.Equal("Example", Assert.Single(await ProjectListFile.ImportAsync(repository.SettingsPath)).Name);
+    }
+
+    [Fact]
+    public async Task Import_rejects_files_without_a_project_list_and_names_unnamed_projects()
+    {
+        Directory.CreateDirectory(_root);
+        var bad = Path.Combine(_root, "bad.json");
+        await File.WriteAllTextAsync(bad, "{ \"theme\": \"Dark\" }");
+        await Assert.ThrowsAsync<InvalidDataException>(() => ProjectListFile.ImportAsync(bad));
+        await File.WriteAllTextAsync(bad, "not json");
+        await Assert.ThrowsAsync<InvalidDataException>(() => ProjectListFile.ImportAsync(bad));
+
+        var bare = Path.Combine(_root, "bare.json");
+        await File.WriteAllTextAsync(bare, """[{ "rootPath": "D:\\Code\\alpha\\" }, { "name": "no path" }]""");
+        Assert.Equal("alpha", Assert.Single(await ProjectListFile.ImportAsync(bare)).Name);
+    }
+
     private static AppSettings CreateSettings()
     {
         var project = new ProjectDefinition { Name = "Example", RootPath = @"C:\Example" };

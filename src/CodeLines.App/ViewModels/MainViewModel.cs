@@ -3,6 +3,7 @@ using System.IO;
 using CodeLines.Core.Abstractions;
 using CodeLines.Core.AiUsage;
 using CodeLines.Core.Models;
+using CodeLines.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -194,7 +195,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task AddProjectAsync(string path)
     {
-        if (Projects.Any(x => string.Equals(Path.GetFullPath(x.RootPath), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase)))
+        if (Projects.Any(x => SamePath(x.RootPath, path)))
         {
             StatusText = "That project is already in the list";
             return;
@@ -206,6 +207,46 @@ public sealed partial class MainViewModel : ObservableObject
         SelectedProject = row;
         await _repository.SaveAsync(_settings);
         StatusText = $"Added {model.Name}";
+    }
+
+    public async Task ExportProjectsAsync(string path)
+    {
+        ApplyEditorValues();
+        await ProjectListFile.ExportAsync(_settings.Projects, path);
+        StatusText = $"Exported {_settings.Projects.Count} projects";
+    }
+
+    /// <summary>Adds the file's projects to the list; folders already in the list are skipped.</summary>
+    public async Task ImportProjectsAsync(string path)
+    {
+        if (IsBusy) return;
+        var imported = await ProjectListFile.ImportAsync(path);
+        ApplyEditorValues();
+        int added = 0, skipped = 0, missing = 0;
+        foreach (var model in imported)
+        {
+            if (Projects.Any(x => SamePath(x.RootPath, model.RootPath))) { skipped++; continue; }
+            if (model.Id == Guid.Empty || _settings.Projects.Any(x => x.Id == model.Id)) model.Id = Guid.NewGuid();
+            if (!Directory.Exists(model.RootPath)) missing++;
+            _settings.Projects.Add(model);
+            Projects.Add(new ProjectItemViewModel(model));
+            added++;
+        }
+        if (added > 0) await _repository.SaveAsync(_settings);
+        SelectedProject ??= Projects.FirstOrDefault();
+        StatusText = $"Imported {added} projects" +
+                     (skipped > 0 ? $" • {skipped} already in the list" : "") +
+                     (missing > 0 ? $" • {missing} folders not found on this machine" : "");
+    }
+
+    private static bool SamePath(string a, string b)
+    {
+        static string Normalize(string path)
+        {
+            try { return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)); }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { return path; }
+        }
+        return string.Equals(Normalize(a), Normalize(b), StringComparison.OrdinalIgnoreCase);
     }
 
     public Task ExportAsync(string path) => path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)

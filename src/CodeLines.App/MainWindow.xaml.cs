@@ -114,6 +114,22 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog(this) == true) await _viewModel.AddProjectAsync(dialog.FolderName);
     }
 
+    private async void ExportProjects_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog { Title = "Export project list", Filter = "CodeLines project list (*.json)|*.json", DefaultExt = ".json", FileName = $"codelines-projects-{DateTime.Now:yyyyMMdd}" };
+        if (dialog.ShowDialog(this) != true) return;
+        try { await _viewModel.ExportProjectsAsync(dialog.FileName); }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Export projects", MessageBoxButton.OK, MessageBoxImage.Warning); }
+    }
+
+    private async void ImportProjects_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Title = "Import project list", Filter = "CodeLines project list or settings (*.json)|*.json", Multiselect = false };
+        if (dialog.ShowDialog(this) != true) return;
+        try { await _viewModel.ImportProjectsAsync(dialog.FileName); }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Import projects", MessageBoxButton.OK, MessageBoxImage.Warning); }
+    }
+
     private async void Export_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new SaveFileDialog
