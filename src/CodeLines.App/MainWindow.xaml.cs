@@ -19,11 +19,14 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        var repository = new JsonProjectRepository();
+        // Theme the window before its first frame; the full settings load only finishes after it is shown.
+        ApplyTheme(repository.ReadTheme() ?? "System");
         InitializeComponent();
         var registry = new LanguageRegistry();
         var classifier = new FileClassifier(registry);
         var scanner = new SourceScanner(classifier, new GitIgnoreRuleProvider(), new LineMetricsAnalyzer(), new TokenCounter());
-        _viewModel = new MainViewModel(new JsonProjectRepository(), scanner, new ExportService(), ApplyTheme);
+        _viewModel = new MainViewModel(repository, scanner, new ExportService(), ApplyTheme);
         DataContext = _viewModel;
         Loaded += async (_, _) => await _viewModel.InitializeAsync();
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;

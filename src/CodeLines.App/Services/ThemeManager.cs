@@ -10,16 +10,19 @@ public static class ThemeManager
     public static void Apply(string requestedTheme)
     {
         var application = Application.Current;
-        application.ThemeMode = requestedTheme switch
+        var mode = requestedTheme switch
         {
             "Light" => ThemeMode.Light,
             "Dark" => ThemeMode.Dark,
             _ => ThemeMode.System
         };
+        if (application.ThemeMode != mode) application.ThemeMode = mode;
 
         var palette = requestedTheme == "System" ? ResolveSystemPalette() : requestedTheme;
         var dictionaries = application.Resources.MergedDictionaries;
         var current = dictionaries.FirstOrDefault(IsThemeDictionary);
+        // Already showing this palette: swapping in an identical dictionary would only re-resolve every brush.
+        if (current?.Source?.OriginalString.EndsWith($"/{palette}{ThemeMarker}", StringComparison.OrdinalIgnoreCase) == true) return;
         var replacement = new ResourceDictionary
         {
             Source = new Uri($"pack://application:,,,/CodeLines.App;component/Themes/{palette}Theme.xaml", UriKind.Absolute)

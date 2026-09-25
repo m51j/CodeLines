@@ -26,6 +26,26 @@ public sealed class PersistenceAndExportTests : IDisposable
     }
 
     [Fact]
+    public async Task Theme_is_read_without_loading_the_whole_settings_file()
+    {
+        Directory.CreateDirectory(_root);
+        var repository = new JsonProjectRepository(Path.Combine(_root, "settings.json"));
+        Assert.Null(repository.ReadTheme());
+
+        await repository.SaveAsync(new AppSettings { Theme = "Dark" });
+        Assert.Equal("Dark", repository.ReadTheme());
+
+        // A nested "theme" and a payload bigger than the read buffer come before the real one.
+        var filler = new string('x', 100_000);
+        await File.WriteAllTextAsync(repository.SettingsPath,
+            $$"""{ "projects": [{ "theme": "Light", "name": "{{filler}}" }], "Theme": "Dark" }""");
+        Assert.Equal("Dark", repository.ReadTheme());
+
+        await File.WriteAllTextAsync(repository.SettingsPath, "{ \"projects\": [");
+        Assert.Null(repository.ReadTheme());
+    }
+
+    [Fact]
     public async Task Exports_detailed_csv_and_json()
     {
         Directory.CreateDirectory(_root);
