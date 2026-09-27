@@ -73,9 +73,16 @@ public sealed class SourceScanner(
                 {
                     var info = new DirectoryInfo(child);
                     if (info.Attributes.HasFlag(FileAttributes.ReparsePoint)) continue;
-                    if (!ignoreRules.IsIgnored(project.RootPath, child, true,
-                            options.GlobalExcludePatterns, project.ExcludePatterns))
-                        stack.Push(child);
+                    if (ignoreRules.IsIgnored(project.RootPath, child, true,
+                            options.GlobalExcludePatterns, project.ExcludePatterns)) continue;
+                    // A nested .git (directory for a clone, file for a worktree or submodule) marks a
+                    // separate checkout; AI tools park full worktree copies inside the project tree.
+                    if (IsNestedRepository(child))
+                    {
+                        warnings.Add($"Skipped nested repository: {child}");
+                        continue;
+                    }
+                    stack.Push(child);
                 }
 
                 foreach (var file in Directory.EnumerateFiles(directory))
@@ -113,6 +120,12 @@ public sealed class SourceScanner(
         if (string.IsNullOrEmpty(extension)) extension = "[no extension]";
         return new(project.Name, candidate.RelativePath, extension, candidate.Classification.Language.Name,
             candidate.Classification.Category, candidate.Bytes, tokens, lines);
+    }
+
+    private static bool IsNestedRepository(string directory)
+    {
+        var marker = Path.Combine(directory, ".git");
+        return Directory.Exists(marker) || File.Exists(marker);
     }
 
     private static bool LooksBinary(ReadOnlySpan<byte> bytes)

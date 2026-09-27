@@ -39,6 +39,26 @@ public sealed class SourceScannerTests : IDisposable
         Assert.DoesNotContain(result.Files, x => x.RelativePath.Contains("binary", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Theory]
+    [InlineData(".kilo/worktrees/copy", true)]
+    [InlineData("vendor/clone", false)]
+    public async Task Nested_repository_checkouts_are_not_counted(string nestedPath, bool gitMarkerIsFile)
+    {
+        var nested = Path.Combine(_root, nestedPath);
+        Directory.CreateDirectory(nested);
+        if (gitMarkerIsFile) File.WriteAllText(Path.Combine(nested, ".git"), "gitdir: elsewhere");
+        else Directory.CreateDirectory(Path.Combine(nested, ".git"));
+        File.WriteAllText(Path.Combine(nested, "Program.cs"), "var copy = 1;\n");
+
+        var project = new ProjectDefinition { Name = "Fixture", RootPath = _root };
+        var options = new ScanOptions { CountingScope = CountingScope.SourceOnly, MaxDegreeOfParallelism = 2, GlobalExcludePatterns = [".git/", "bin/"] };
+        var result = await _scanner.ScanProjectAsync(project, options);
+
+        var file = Assert.Single(result.Files);
+        Assert.Equal("Program.cs", file.RelativePath);
+        Assert.Contains(result.Warnings, x => x.Contains("nested repository", StringComparison.OrdinalIgnoreCase));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root)) Directory.Delete(_root, true);

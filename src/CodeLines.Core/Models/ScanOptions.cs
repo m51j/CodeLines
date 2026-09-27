@@ -12,7 +12,8 @@ public sealed class ScanOptions
     [
         ".git/", ".vs/", ".idea/", "bin/", "obj/", "node_modules/", "dist/", "dist-ssr/",
         "build/", "target/", ".dart_tool/", "coverage/", "publish/", "Releases/", "TestResults/",
-        "playwright-report/", "test-results/", "artifacts/", "packages/", ".next/", "out/"
+        "playwright-report/", "test-results/", "artifacts/", "packages/", ".next/", "out/",
+        ".claude/worktrees/", ".kilo/worktrees/"
     ];
 }
 
