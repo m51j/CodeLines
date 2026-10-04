@@ -6,8 +6,9 @@ using System.Text.Json;
 namespace CodeLines.Core.AiUsage;
 
 /// <summary>
-/// Fills ccstats' pages, embedded verbatim from render.mjs, agents/render.mjs and agents/dashboard.mjs
-/// (see Templates/UPSTREAM.md). Only the values ccstats interpolates on the server are replaced.
+/// Fills pages derived from ccstats' render.mjs, agents/render.mjs and agents/dashboard.mjs,
+/// with local display customizations documented in Templates/UPSTREAM.md.
+/// Replaces the values ccstats interpolates on the server.
 /// </summary>
 public static class AiUsageTemplates
 {

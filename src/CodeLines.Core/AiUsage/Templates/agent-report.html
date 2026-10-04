@@ -64,6 +64,16 @@ tbody tr.total{border-top:1px solid var(--line);font-weight:600}
 td.num,th.num{font-variant-numeric:tabular-nums}
 .name{display:inline-flex;align-items:center;gap:8px}
 td.muted{color:var(--text-3)}
+/* CodeLines: keep long project/session tables usable in both scroll directions. */
+.project-scroll{--project-width:clamp(160px,30vw,320px);max-height:min(60vh,640px);overflow:auto;position:relative;isolation:isolate;scrollbar-gutter:stable}
+.project-scroll:focus-visible{outline:2px solid var(--s1);outline-offset:3px}
+.project-scroll table{border-collapse:separate;border-spacing:0}
+.project-scroll thead th{position:sticky;top:0;z-index:2;background:var(--surface-1)}
+.project-scroll tbody td{border-bottom:1px solid var(--surface-2)}
+.project-scroll tbody tr:last-child td{border-bottom:0}
+.project-scroll .project-column{position:sticky;left:0;z-index:1;background:var(--surface-1);text-align:left;box-shadow:1px 0 0 var(--line)}
+.project-scroll thead .project-column{z-index:3}
+.project-path{display:block;width:var(--project-width);overflow:hidden;text-overflow:ellipsis}
 svg{display:block;width:100%;height:auto}
 .tt{
   position:fixed;pointer-events:none;z-index:50;opacity:0;transition:opacity .08s;
@@ -200,11 +210,11 @@ svg{display:block;width:100%;height:auto}
     <div class="card">
       <h2>By project</h2>
       <p class="sub">Attributed by the working directory of each session.</p>
-      <div style="overflow-x:auto"><table id="projTable"></table></div>
+      <div class="project-scroll" tabindex="0" role="region" aria-label="By project table"><table id="projTable"></table></div>
     </div>
     <div class="card">
       <h2>Heaviest sessions</h2>
-      <div style="overflow-x:auto"><table id="sessTable"></table></div>
+      <div class="project-scroll" tabindex="0" role="region" aria-label="Heaviest sessions table"><table id="sessTable"></table></div>
     </div>
   </section>
 </div>
@@ -804,6 +814,12 @@ function renderCostTable(vw){
 }
 
 /* ---------- projects ---------- */
+function projectCell(path){
+  const span = document.createElement('span');
+  span.className = 'project-path';
+  span.textContent = span.title = String(path || '\u2014');
+  return '<td class="mono project-column">'+span.outerHTML+'</td>';
+}
 function projKey(p){
   if(!p) return '(unknown)';
   let s = String(p).replace(/\//g, '\\').replace(/\\+$/, '');
@@ -821,12 +837,12 @@ function renderProjects(vw){
   }
   const keys = Object.keys(byProj).sort((a,b) => tokens(byProj[b].v) - tokens(byProj[a].v));
   const tot = keys.reduce((a,k) => a + tokens(byProj[k].v), 0) || 1;
-  let html = '<thead><tr><th>Project</th>'+(MULTI?'<th>Agents</th>':'')+'<th class="num">Sessions</th>'
+  let html = '<thead><tr><th class="project-column">Project</th>'+(MULTI?'<th>Agents</th>':'')+'<th class="num">Sessions</th>'
     +'<th class="num">Model calls</th><th class="num">Real tokens</th><th class="num">Share</th>'
     +'<th class="num">Cost</th></tr></thead><tbody>';
   for(const k of keys){
     const b = byProj[k];
-    html += '<tr><td class="mono">'+esc(k)+'</td>'
+    html += '<tr>'+projectCell(k)
       +(MULTI?'<td class="muted">'+[...b.agents].map(a => esc(DATA.agents[a].label)).join(', ')+'</td>':'')
       +'<td class="num">'+fmtInt(b.sessions)+'</td>'
       +'<td class="num">'+fmtInt(b.v[V.REQ])+'</td><td class="num">'+fmtTok(tokens(b.v))+'</td>'
@@ -836,13 +852,13 @@ function renderProjects(vw){
 
   const sess = list.map(s => ({agent:s[0], start:s[2], end:s[3], cwd:s[4], top:s[5], v:sVec(s)}))
     .sort((a,b) => tokens(b.v) - tokens(a.v)).slice(0, 40);
-  let h2 = '<thead><tr><th>Started</th>'+(MULTI?'<th>Agent</th>':'')+'<th>Project</th><th>Model</th><th class="num">Model calls</th>'
+  let h2 = '<thead><tr><th>Started</th>'+(MULTI?'<th>Agent</th>':'')+'<th class="project-column">Project</th><th>Model</th><th class="num">Model calls</th>'
     +'<th class="num">Real tokens</th><th class="num">Duration</th><th class="num">Cost</th></tr></thead><tbody>';
   for(const s of sess){
     const mins = Math.max(1, Math.round((s.end-s.start)/6e4));
     h2 += '<tr><td>'+new Date(s.start).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'</td>'
       +(MULTI?'<td>'+esc(DATA.agents[s.agent].label)+'</td>':'')
-      +'<td class="mono">'+esc((s.cwd||'\u2014').split(/[\\/]/).filter(Boolean).pop()||'\u2014')+'</td>'
+      +projectCell(s.cwd)
       +'<td>'+esc(s.top ? shortModel(modelOf(s.top)) : '\u2014')+'</td>'
       +'<td class="num">'+fmtInt(s.v[V.REQ])+'</td><td class="num">'+fmtTok(tokens(s.v))+'</td>'
       +'<td class="num">'+(mins>=60 ? (mins/60).toFixed(1)+'h' : mins+'m')+'</td>'
