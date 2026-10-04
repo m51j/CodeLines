@@ -25,6 +25,8 @@ public sealed class AiUsageUnitTests
         Assert.Equal((3, 15, 3 * 0.1, 3.75, 6.0), (sonnet.Input, sonnet.Output, sonnet.CacheRead, sonnet.Write5m, sonnet.Write1h));
         Assert.Equal(0.2, ClaudePricing.RatesFor("claude-opus-5-5").CacheRead);
         Assert.Equal(0.25, ClaudePricing.RatesFor("claude-fable-5-1").CacheRead);
+        Assert.True(ClaudePricing.IsKnownModel("claude-sonnet-5-5"));
+        Assert.Equal(0.2, ClaudePricing.RatesFor("claude-sonnet-5-5").CacheRead);
         var unknown = ClaudePricing.RatesFor("claude-future-9");
         Assert.False(unknown.Known);
         Assert.Equal((5, 25), (unknown.Input, unknown.Output));
@@ -38,6 +40,23 @@ public sealed class AiUsageUnitTests
         Assert.Equal(new ListRate(5, 0.5, 6.25, 25), AgentPricing.For("claude-opus-4-6-thinking"));
         Assert.Null(AgentPricing.For("mystery-model"));
     }
+
+    [Theory]
+    [InlineData("gpt-6-luna", 0.1, 0.01, 0.125, 0.5)]
+    [InlineData("omniroute/kr/claude-sonnet-4.5-high", 3, 0.3, 3.75, 15)]
+    [InlineData("claude-sonnet-4.6", 3, 0.3, 3.75, 15)]
+    [InlineData("gemini-3.8-flash-high", 0.75, 0.075, 0.75, 3.75)]
+    [InlineData("gemini-3-flash-agent", 0.5, 0.05, 0.5, 3)]
+    [InlineData("z-ai/glm-5.3-flash", 0.15, 0.03, 0.15, 0.5)]
+    [InlineData("GLM-5.3-Flash", 0.15, 0.03, 0.15, 0.5)]
+    public void Agent_model_ids_are_normalized_before_pricing(string model, double input, double cacheRead, double cacheWrite, double output)
+    {
+        var r = AgentPricing.For(model)!;
+        Assert.Equal((input, cacheRead, cacheWrite, output), (r.Input, Math.Round(r.CacheRead, 6), r.CacheWrite, r.Output));
+    }
+
+    [Fact]
+    public void Models_without_an_official_price_stay_unpriced() => Assert.Null(AgentPricing.For("gemini-2.0-flash"));
 
     [Fact]
     public void Scanner_keeps_ccstats_counting_rules()

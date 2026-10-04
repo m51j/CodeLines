@@ -23,6 +23,7 @@ public static partial class ClaudePricing
         ["claude-mythos-5-1"] = (10, 50, 0.25),
         ["claude-fable-5"] = (10, 50, null),
         ["claude-mythos-5"] = (10, 50, null),
+        ["claude-sonnet-5-5"] = (2, 10, 0.2),
         ["claude-sonnet-5"] = (2, 10, null),
         ["claude-sonnet-4-6"] = (3, 15, null),
         ["claude-sonnet-4-5"] = (3, 15, null),
